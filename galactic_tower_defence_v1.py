@@ -232,12 +232,25 @@ class Game:
     def permanent_upgrades(self):
         self.game_state = "permanent_upgrades"
         self.setup_permanent_buttons()
-    
+
     def back_to_menu(self):
-        # Clear current buttons and reinitialize menu buttons.
+        # Clear game-specific states that shouldn't persist in the main menu.
         self.buttons = []
         self.game_state = "menu"
+        # Optionally, reinitialize any in-game variables if you want to start fresh next time:
+        self.wave = 1
+        self.mobs = []
+        self.shot_effects = []
+        self.mobs_spawned = 0
+        self.mobs_to_spawn = self.calculate_mobs_to_spawn(self.wave)
+        # Also, reset upgrade costs if that makes sense:
+        self.health_upgrade_cost = 50
+        self.damage_upgrade_cost = 50
+        self.speed_upgrade_cost = 50
+        # Now set up the main menu buttons.
+        self.game_state = "menu"
         self.setup_menu_buttons()
+
     
     def quit_game(self):
         pygame.quit()
@@ -357,6 +370,10 @@ class Game:
     
     # --- Defense Phase ---
     def defense_phase(self):
+        # Immediately exit if the game state is no longer defense.
+        if self.game_state != "defense":
+            return
+
         current_time = pygame.time.get_ticks()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -365,11 +382,17 @@ class Game:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.pause_menu()
+                    # Return immediately if state has changed.
+                    if self.game_state != "defense":
+                        return
             if event.type == pygame.MOUSEBUTTONDOWN:
                 pos = pygame.mouse.get_pos()
                 for btn in self.buttons:
                     if btn.is_clicked(pos):
                         btn.action()
+    
+    # ... (rest of your defense_phase drawing and logic)
+
         
         self.screen.fill(BLACK)
         
