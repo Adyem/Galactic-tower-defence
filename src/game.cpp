@@ -160,6 +160,7 @@ void GameSim::spawnEnemy(bool boss) {
     enemy.radius = content.enemyRadius[enemyIndex];
     enemy.damageResistance = content.enemyDamageResistance[enemyIndex];
     enemy.teleportCooldown = content.enemyTeleportCooldown[enemyIndex];
+    if (boss) enemy.attackCooldownTicks = content.bossAttackCooldownTicks;
     enemy.maxHp = (boss ? 100.0f : 70.0f + random01() * 35.0f) * content.enemyHealthScale[enemyIndex] * scale;
     enemy.hp = enemy.maxHp;
     const float arenaSpeed = content.arenaSpeedScale[static_cast<std::size_t>(selectedArena)];
@@ -177,6 +178,7 @@ void GameSim::updateEnemies() {
         if (enemy.stun > 0.0f) enemy.stun -= 1.0f / TickRate;
         if (enemy.slow > 0.0f) enemy.slow -= 1.0f / TickRate;
         if (enemy.teleportCooldown > 0.0f) enemy.teleportCooldown -= 1.0f / TickRate;
+        if (enemy.attackCooldownTicks > 0) --enemy.attackCooldownTicks;
         if (enemy.burn > 0.0f) {
             enemy.burn -= 1.0f / TickRate;
             if (enemy.burnTicks-- % 5 == 0) applyDamage(enemy, enemy.burnDps / TickRate * 5.0f);
@@ -195,6 +197,20 @@ void GameSim::updateEnemies() {
         if (enemy.type == EnemyType::Teleporter && enemy.teleportCooldown <= 0.0f) {
             enemy.pos.x = std::max(92.0f, enemy.pos.x - 115.0f);
             enemy.teleportCooldown = content.enemyTeleportCooldown[static_cast<std::size_t>(EnemyType::Teleporter)] + random01() * 1.5f;
+        }
+        if (enemy.boss) {
+            if (enemy.telegraphTicks > 0) {
+                --enemy.telegraphTicks;
+                if (enemy.telegraphTicks == 0) {
+                    lives = std::max(0, lives - content.bossAttackLives);
+                    ++counters.bossAttacks;
+                    enemy.attackCooldownTicks = content.bossAttackCooldownTicks;
+                    if (lives <= 0) gameOver = true;
+                }
+            } else if (enemy.attackCooldownTicks <= 0) {
+                // Fifteen ticks is a 500 ms warning at the fixed 30 Hz tick.
+                enemy.telegraphTicks = content.bossTelegraphTicks;
+            }
         }
         const float slowFactor = enemy.slow > 0.0f ? 0.45f : 1.0f;
         enemy.pos.x += enemy.speed * slowFactor / TickRate;
@@ -508,13 +524,13 @@ std::uint32_t GameSim::stateHash() const {
     add(static_cast<std::uint32_t>(selectedWeapon)); add(static_cast<std::uint32_t>(selectedSkull)); add(static_cast<std::uint32_t>(selectedSkulls));
     add(static_cast<std::uint32_t>(selectedUltimate)); add(static_cast<std::uint32_t>(selectedArena));
     add(static_cast<std::uint32_t>(counters.ticks)); add(static_cast<std::uint32_t>(counters.wave)); add(static_cast<std::uint32_t>(counters.kills));
-    add(static_cast<std::uint32_t>(counters.leaks)); add(static_cast<std::uint32_t>(counters.upgrades)); add(static_cast<std::uint32_t>(counters.ultimates)); add(static_cast<std::uint32_t>(counters.shotsFired)); add(static_cast<std::uint32_t>(counters.score));
+    add(static_cast<std::uint32_t>(counters.leaks)); add(static_cast<std::uint32_t>(counters.upgrades)); add(static_cast<std::uint32_t>(counters.ultimates)); add(static_cast<std::uint32_t>(counters.shotsFired)); add(static_cast<std::uint32_t>(counters.bossAttacks)); add(static_cast<std::uint32_t>(counters.score));
     addSize(enemyList.size());
     for (const Enemy& enemy : enemyList) {
         add(static_cast<std::uint32_t>(enemy.id)); add(static_cast<std::uint32_t>(enemy.type)); add(static_cast<std::uint32_t>(enemy.phase));
         addBool(enemy.boss); addBool(enemy.alive); addFloat(enemy.pos.x); addFloat(enemy.pos.y); addFloat(enemy.hp); addFloat(enemy.maxHp); addFloat(enemy.speed); addFloat(enemy.radius);
         addFloat(enemy.slow); addFloat(enemy.stun); addFloat(enemy.burn); addFloat(enemy.burnDps); add(static_cast<std::uint32_t>(enemy.burnTicks));
-        addFloat(enemy.poison); addFloat(enemy.poisonDps); add(static_cast<std::uint32_t>(enemy.poisonTicks)); addFloat(enemy.damageResistance); addFloat(enemy.teleportCooldown);
+        addFloat(enemy.poison); addFloat(enemy.poisonDps); add(static_cast<std::uint32_t>(enemy.poisonTicks)); add(static_cast<std::uint32_t>(enemy.attackCooldownTicks)); add(static_cast<std::uint32_t>(enemy.telegraphTicks)); addFloat(enemy.damageResistance); addFloat(enemy.teleportCooldown);
     }
     addSize(projectileList.size());
     for (const Projectile& projectile : projectileList) {

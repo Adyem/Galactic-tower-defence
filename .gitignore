@@ -3,6 +3,9 @@
 /build-asan/
 /build-clang/
 /build-release/
+/build-portable/
+/build-portable-asan/
+/install-portable/
 
 # IDE and OS noise
 .DS_Store
@@ -13,6 +16,8 @@
 *.replay
 *.save
 *.log
+/*.exe
+/*.dll
 
 # CMake user files
 CMakeCache.txt
@@ -26,3 +31,4 @@ build.ninja
 .ninja_deps
 .ninja_log
 
+/.tools/

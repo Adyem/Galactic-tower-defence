@@ -35,6 +35,8 @@ struct Enemy {
     float poison = 0.0f;
     float poisonDps = 0.0f;
     int poisonTicks = 0;
+    int attackCooldownTicks = 0;
+    int telegraphTicks = 0;
     EnemyType type = EnemyType::Grunt;
     float damageResistance = 0.0f;
     float teleportCooldown = 0.0f;
@@ -62,6 +64,7 @@ struct SimStats {
     int upgrades = 0;
     int ultimates = 0;
     int shotsFired = 0;
+    int bossAttacks = 0;
     int score = 0;
 };
 
@@ -119,6 +122,9 @@ struct ContentConfig {
     std::array<float, 7> enemyDamageResistance{{0.0f, 0.0f, 0.0f, 0.45f, 0.0f, 0.0f, 0.0f}};
     std::array<float, 7> enemyRadius{{14.0f, 11.0f, 21.0f, 17.0f, 8.0f, 15.0f, 34.0f}};
     std::array<float, 7> enemyTeleportCooldown{{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 2.5f, 0.0f}};
+    int bossAttackCooldownTicks = 450;
+    int bossTelegraphTicks = 15;
+    int bossAttackLives = 2;
 };
 
 bool loadContentConfig(const std::string& directory, ContentConfig& output, std::string* error = nullptr);
@@ -127,8 +133,13 @@ std::uint32_t contentFingerprint(const ContentConfig& content);
 
 class GameSim {
 public:
+    // Combat uses compact, deterministic world units. The client maps this
+    // space onto the larger design canvas required by the art/UI specification.
     static constexpr int Width = 1280;
     static constexpr int Height = 720;
+    static constexpr int DesignWidth = 1920;
+    static constexpr int DesignHeight = 1080;
+    static constexpr float WorldScale = 1.5f;
     static constexpr int TickRate = 30;
 
     explicit GameSim(std::uint32_t seed = 0xC0FFEEu);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "game.hpp"
+#include "input.hpp"
 
 #include <cstdint>
 #include <string>
@@ -41,7 +42,7 @@ struct ReplayData {
 bool replayFinalHash(const ReplayData& replay, std::uint32_t ticks, std::uint32_t& hash, SimStats* finalStats = nullptr, std::string* error = nullptr);
 
 struct ProfileData {
-    std::uint32_t version = 3;
+    std::uint32_t version = 6;
     int bestScore = 0;
     int bestWave = 0;
     std::uint32_t runsCompleted = 0;
@@ -49,6 +50,14 @@ struct ProfileData {
     bool reducedFlashes = false;
     bool highContrast = false;
     std::uint8_t masterVolume = 100;
+    std::uint8_t musicVolume = 100;
+    std::uint8_t sfxVolume = 100;
+    std::uint8_t uiVolume = 100;
+    std::uint8_t uiScalePercent = 100;
+    std::uint8_t colorBlindPalette = 0;
+    bool subtitles = true;
+    bool vibration = true;
+    InputBindings inputBindings = defaultInputBindings();
     std::uint32_t cosmeticShards = 0;
     std::uint32_t unlockedSkinsMask = 1u;
     std::uint8_t equippedSkin = 0;

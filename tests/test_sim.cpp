@@ -4,6 +4,7 @@
 
 #include <cstdlib>
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -13,6 +14,10 @@ int failures = 0;
 
 void check(bool condition, const char* message) {
     if (!condition) { std::cerr << "FAIL: " << message << '\n'; ++failures; }
+}
+
+std::string temporaryTestPath(const char* filename) {
+    return (std::filesystem::temp_directory_path() / filename).string();
 }
 
 void advance(ta::GameSim& sim, int ticks, bool useUltimate = false) {
@@ -25,6 +30,9 @@ void advance(ta::GameSim& sim, int ticks, bool useUltimate = false) {
 } // namespace
 
 int main() {
+    const ta::InputBindings defaultBindings = ta::defaultInputBindings();
+    check(defaultBindings.key(ta::InputAction::Confirm) == 13 && defaultBindings.key(ta::InputAction::Ultimate) == 32, "default input action map is not stable");
+    check(ta::validInputKey(defaultBindings.key(ta::InputAction::Pause)) && std::string(ta::inputActionName(ta::InputAction::Ultimate)).size() > 0, "input action metadata is incomplete");
     // Same seed and commands must produce exactly the same simulation state.
     ta::GameSim a(12345u), b(12345u);
     a.setWeapon(ta::Weapon::ExplosiveCannon); b.setWeapon(ta::Weapon::ExplosiveCannon);
@@ -51,15 +59,20 @@ int main() {
     ta::GameSim complete(0xBEEFu);
     int completeTicks = 0;
     bool sawBossPhaseTwo = false;
+    bool sawBossTelegraph = false;
     while (!complete.isGameOver() && !complete.isVictory() && completeTicks++ < 100000) {
         if (complete.upgradePending()) complete.chooseUpgrade(0);
         if (completeTicks % 240 == 0) complete.activateUltimate();
         complete.tick();
-        for (const ta::Enemy& enemy : complete.enemies()) if (enemy.boss && enemy.phase >= 2) sawBossPhaseTwo = true;
+        for (const ta::Enemy& enemy : complete.enemies()) {
+            if (enemy.boss && enemy.phase >= 2) sawBossPhaseTwo = true;
+            if (enemy.boss && enemy.telegraphTicks > 0) sawBossTelegraph = true;
+        }
     }
     check(complete.isVictory(), "a fully played run did not reach the victory state");
     check(complete.waveNumber() == 10, "victory did not occur on the final wave");
     check(sawBossPhaseTwo, "boss never entered its second phase");
+    check(sawBossTelegraph && complete.stats().bossAttacks > 0, "boss never emitted or resolved a telegraphed attack");
     const ta::RunSummary summary = complete.runSummary();
     check(summary.victory && summary.score == complete.stats().score && summary.kills == complete.stats().kills && summary.durationTicks == complete.stats().ticks && summary.scoreMultiplier == complete.skullScoreMultiplier(), "run summary did not mirror terminal statistics");
 
@@ -134,7 +147,9 @@ int main() {
     check(ta::ReplayData::deserialize(replay.serialize(), decoded, &error), "replay serialization failed");
     check(decoded.seed == replay.seed && decoded.weapon == replay.weapon && decoded.skull == replay.skull && decoded.skullMask == replay.skullMask && decoded.ultimate == replay.ultimate && decoded.autoUltimate == replay.autoUltimate && decoded.arena == replay.arena && decoded.events.size() == 2, "replay round trip changed data");
     check(!ta::ReplayData::deserialize("TA_REPLAY 1\nweapon invalid\n", decoded, &error), "malformed replay was accepted");
-    const std::string replayPath = "/tmp/tower_ascend_test.replay";
+    check(!ta::ReplayData::deserialize("TA_REPLAY 1\nevent 30 1 0\nevent 20 1 0\n", decoded, &error), "out-of-order replay events were accepted");
+    check(!ta::ReplayData::deserialize("TA_REPLAY 1\nevent 30 1 3\n", decoded, &error), "invalid replay upgrade choice was accepted");
+    const std::string replayPath = temporaryTestPath("tower_ascend_test.replay");
     check(replay.save(replayPath, &error) && ta::ReplayData::load(replayPath, decoded, &error), "replay file persistence failed");
 
     ta::ReplayData script;
@@ -175,11 +190,16 @@ int main() {
     }
 
     ta::ProfileData profile;
-    profile.bestScore = 9001; profile.bestWave = 10; profile.runsCompleted = 4; profile.totalKills = 77; profile.reducedFlashes = true; profile.highContrast = true; profile.masterVolume = 60;
-    const std::string profilePath = "/tmp/tower_ascend_test.profile";
+    profile.bestScore = 9001; profile.bestWave = 10; profile.runsCompleted = 4; profile.totalKills = 77; profile.reducedFlashes = true; profile.highContrast = true; profile.masterVolume = 60; profile.musicVolume = 70; profile.sfxVolume = 80; profile.uiVolume = 60;
+    profile.uiScalePercent = 120; profile.colorBlindPalette = 2; profile.subtitles = false; profile.vibration = false;
+    profile.inputBindings.key(ta::InputAction::Ultimate) = 'e';
+    const std::string profilePath = temporaryTestPath("tower_ascend_test.profile");
     ta::ProfileData loadedProfile;
     check(ta::saveProfile(profilePath, profile, &error) && ta::loadProfile(profilePath, loadedProfile, &error), "profile persistence failed");
-    check(loadedProfile.bestScore == profile.bestScore && loadedProfile.reducedFlashes == profile.reducedFlashes && loadedProfile.highContrast == profile.highContrast && loadedProfile.masterVolume == profile.masterVolume, "profile round trip changed data");
+    check(loadedProfile.bestScore == profile.bestScore && loadedProfile.reducedFlashes == profile.reducedFlashes && loadedProfile.highContrast == profile.highContrast && loadedProfile.masterVolume == profile.masterVolume && loadedProfile.musicVolume == profile.musicVolume && loadedProfile.sfxVolume == profile.sfxVolume && loadedProfile.uiVolume == profile.uiVolume && loadedProfile.uiScalePercent == profile.uiScalePercent && loadedProfile.colorBlindPalette == profile.colorBlindPalette && loadedProfile.subtitles == profile.subtitles && loadedProfile.vibration == profile.vibration, "profile round trip changed data");
+    check(loadedProfile.version == 6 && loadedProfile.inputBindings.key(ta::InputAction::Ultimate) == 'e', "profile input bindings did not round trip");
+    profile.bestScore += 1;
+    check(ta::saveProfile(profilePath, profile, &error) && !std::filesystem::exists(profilePath + ".tmp"), "profile replacement left a temporary save behind");
     check(ta::isSkinUnlocked(loadedProfile, ta::TowerSkin::Azure), "default Azure skin was not unlocked");
     check(!ta::isSkinUnlocked(loadedProfile, ta::TowerSkin::Nebula), "premium cosmetic was unlocked without shards");
     loadedProfile.cosmeticShards = 100;
@@ -192,14 +212,21 @@ int main() {
     ta::ProfileData customReward;
     ta::awardRunCosmetics(customReward, rewardStats, true, 37);
     check(customReward.cosmeticShards == static_cast<std::uint32_t>(rewardStats.kills / 8 + 40 + 37), "daily reward value was not applied explicitly");
-    const std::string legacyProfilePath = "/tmp/tower_ascend_legacy.profile";
+    const std::string legacyProfilePath = temporaryTestPath("tower_ascend_legacy.profile");
     {
         std::ofstream legacy(legacyProfilePath);
         legacy << "TA_PROFILE 1\n" << "best_score 12\n" << "best_wave 2\n" << "runs_completed 1\n" << "total_kills 3\n" << "reduced_flashes 0\n";
     }
     ta::ProfileData migrated;
-    check(ta::loadProfile(legacyProfilePath, migrated, &error) && migrated.version == 1 && migrated.unlockedSkinsMask == 1u, "legacy profile migration failed");
+    const bool legacyLoaded = ta::loadProfile(legacyProfilePath, migrated, &error);
+    check(legacyLoaded && migrated.version == 1 && migrated.unlockedSkinsMask == 1u, "legacy profile migration failed");
     check(!migrated.highContrast && migrated.masterVolume == 100, "legacy profile did not receive safe accessibility defaults");
+    const std::string invalidProfilePath = temporaryTestPath("tower_ascend_invalid_binding.profile");
+    {
+        std::ofstream invalid(invalidProfilePath);
+        invalid << "TA_PROFILE 6\nkey_binding_0 0\n";
+    }
+    check(!ta::loadProfile(invalidProfilePath, migrated, &error), "invalid persisted key binding was accepted");
 
     ta::GameSim azure(300u), ember(300u);
     azure.setSkin(ta::TowerSkin::Azure); ember.setSkin(ta::TowerSkin::Ember);
@@ -207,7 +234,7 @@ int main() {
     check(azure.stateHash() == ember.stateHash(), "cosmetic skin changed deterministic combat state");
 
     ta::ContentConfig authored;
-    check(ta::loadContentConfig(TA_CONTENT_DIR, authored, &error), "authored content configuration failed to load");
+    check(ta::loadContentConfig(ta::defaultContentDirectory(), authored, &error), "authored content configuration failed to load");
     const std::uint32_t authoredHash = ta::contentFingerprint(authored);
     ta::ReplayData boundReplay = replay;
     boundReplay.contentHash = authoredHash;
@@ -233,7 +260,7 @@ int main() {
     check(authored.waveEnemyTypeWeight[1][0] == 80.0f && authored.waveEnemyTypeWeight[1][1] == 20.0f && authored.waveEnemyTypeWeight[8][5] == 13.0f, "authored wave enemy composition was not parsed");
     check(authored.arenaHealthScale[1] == 1.15f && authored.arenaSpeedScale[2] == 1.12f && authored.arenaPathAmplitude[0] == 120.0f, "authored arena values were not parsed");
     check(authored.enemyHealthScale[1] == 0.60f && authored.enemyHealthScale[6] == 18.0f && authored.enemySpeedScale[4] == 1.35f, "authored enemy health/speed values were not parsed");
-    check(authored.enemyDamageResistance[3] == 0.45f && authored.enemyRadius[2] == 21.0f && authored.enemyTeleportCooldown[5] == 2.5f, "authored enemy behavior values were not parsed");
+    check(authored.enemyDamageResistance[3] == 0.45f && authored.enemyRadius[2] == 21.0f && authored.enemyTeleportCooldown[5] == 2.5f && authored.bossAttackCooldownTicks == 450 && authored.bossTelegraphTicks == 15 && authored.bossAttackLives == 2, "authored enemy behavior values were not parsed");
     ta::ContentConfig tunedEnemies = authored;
     tunedEnemies.enemyHealthScale[0] = 2.0f;
     tunedEnemies.enemySpeedScale[0] = 0.5f;

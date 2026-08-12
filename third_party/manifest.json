@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "policy": "release dependencies must be versioned and licensed before packaging",
+  "dependencies": [
+    {
+      "id": "sdl2",
+      "name": "SDL2",
+      "version": ">=2.0.20",
+      "license": "zlib",
+      "source": "https://github.com/libsdl-org/SDL",
+      "integration": "CMake package or pkg-config toolchain dependency",
+      "runtime": "window, input, audio, haptics"
+    }
+  ]
+}

@@ -2,13 +2,13 @@
   "schema": 1,
   "generated_placeholder_policy": "vector_geometry_until_final_art_pass",
   "assets": [
-    {"id":"content.weapons","type":"json","runtime_path":"content/weapons.json","license":"project"},
-    {"id":"content.upgrades","type":"json","runtime_path":"content/upgrades.json","license":"project"},
-    {"id":"content.skulls","type":"json","runtime_path":"content/skulls.json","license":"project"},
-    {"id":"content.waves","type":"json","runtime_path":"content/waves.json","license":"project"},
-    {"id":"content.enemies","type":"json","runtime_path":"content/enemies.json","license":"project"}
-    ,{"id":"content.ultimates","type":"json","runtime_path":"content/ultimates.json","license":"project"},
-    {"id":"content.skins","type":"json","runtime_path":"content/skins.json","license":"project"},
-    {"id":"content.arenas","type":"json","runtime_path":"content/arenas.json","license":"project"}
+    {"id":"content.weapons","type":"json","source":"content/weapons.json","runtime_path":"content/weapons.json","dimensions":[0,0],"pivot":[0.5,0.5],"atlas":"none","tags":["authored","combat"],"license":"project","content_hash":"sha256:3d426530e3ba1de213b1cfed07c962f073916866c730f6f494d02e845ab078b0"},
+    {"id":"content.upgrades","type":"json","source":"content/upgrades.json","runtime_path":"content/upgrades.json","dimensions":[0,0],"pivot":[0.5,0.5],"atlas":"none","tags":["authored","combat"],"license":"project","content_hash":"sha256:aafe6682d6fb2f703c1b7450f9e136eeb8c3b5576b0b14e127205c6ca295363d"},
+    {"id":"content.skulls","type":"json","source":"content/skulls.json","runtime_path":"content/skulls.json","dimensions":[0,0],"pivot":[0.5,0.5],"atlas":"none","tags":["authored","modifier"],"license":"project","content_hash":"sha256:c09362dcf6a23d10d1d50653755ca3ca3c87fc75fcc0363f37916854179beb19"},
+    {"id":"content.waves","type":"json","source":"content/waves.json","runtime_path":"content/waves.json","dimensions":[0,0],"pivot":[0.5,0.5],"atlas":"none","tags":["authored","wave"],"license":"project","content_hash":"sha256:eb84d45e24337d1e17ba603b88f7ef1fe588e86df23b6393396bcd19b39d245e"},
+    {"id":"content.enemies","type":"json","source":"content/enemies.json","runtime_path":"content/enemies.json","dimensions":[0,0],"pivot":[0.5,0.5],"atlas":"none","tags":["authored","enemy"],"license":"project","content_hash":"sha256:0adac1100e3ec1981d4085b9e766967481e9717394ec65785e741e3162b68404"},
+    {"id":"content.ultimates","type":"json","source":"content/ultimates.json","runtime_path":"content/ultimates.json","dimensions":[0,0],"pivot":[0.5,0.5],"atlas":"none","tags":["authored","ability"],"license":"project","content_hash":"sha256:76beaa0c55f09de170652ca4513fc18d4d04577b96c24e1b0c969b19fd67c697"},
+    {"id":"content.skins","type":"json","source":"content/skins.json","runtime_path":"content/skins.json","dimensions":[0,0],"pivot":[0.5,0.5],"atlas":"none","tags":["authored","cosmetic"],"license":"project","content_hash":"sha256:bb3898b1d12d26fb002ec697087c2c887b75f73be0aad63c6560368178b82a5a"},
+    {"id":"content.arenas","type":"json","source":"content/arenas.json","runtime_path":"content/arenas.json","dimensions":[0,0],"pivot":[0.5,0.5],"atlas":"none","tags":["authored","arena"],"license":"project","content_hash":"sha256:22f851a9b1bc075e2a1f08819fb97aec2a402bd41b2469e33947f278735ae391"}
   ]
 }

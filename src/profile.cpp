@@ -3,6 +3,11 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <system_error>
+
+#if defined(_WIN32)
+#include <windows.h>
+#endif
 
 namespace ta {
 namespace {
@@ -27,6 +32,10 @@ bool parseInt(const std::string& value, int& output) {
     } catch (...) { return false; }
 }
 
+void stripCarriageReturn(std::string& line) {
+    if (!line.empty() && line.back() == '\r') line.pop_back();
+}
+
 bool atomicWrite(const std::string& path, const std::string& contents, std::string* error) {
     const std::filesystem::path destination(path);
     const std::filesystem::path temporary = destination.string() + ".tmp";
@@ -36,14 +45,16 @@ bool atomicWrite(const std::string& path, const std::string& contents, std::stri
     file.flush();
     if (!file) { if (error) *error = "unable to write save"; return false; }
     file.close();
+#if defined(_WIN32)
+    if (!MoveFileExW(temporary.c_str(), destination.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+        if (error) *error = "unable to commit save: " + std::error_code(static_cast<int>(GetLastError()), std::system_category()).message();
+        return false;
+    }
+#else
     std::error_code ec;
     std::filesystem::rename(temporary, destination, ec);
-    if (ec) {
-        std::filesystem::remove(destination, ec);
-        ec.clear();
-        std::filesystem::rename(temporary, destination, ec);
-    }
     if (ec) { if (error) *error = "unable to commit save: " + ec.message(); return false; }
+#endif
     return true;
 }
 
@@ -61,9 +72,12 @@ std::string ReplayData::serialize() const {
 bool ReplayData::deserialize(const std::string& text, ReplayData& output, std::string* error) {
     std::istringstream stream(text);
     std::string line;
-    if (!std::getline(stream, line) || line != "TA_REPLAY 1") { if (error) *error = "invalid replay header"; return false; }
+    if (!std::getline(stream, line)) { if (error) *error = "invalid replay header"; return false; }
+    stripCarriageReturn(line);
+    if (line != "TA_REPLAY 1") { if (error) *error = "invalid replay header"; return false; }
     ReplayData parsed;
     while (std::getline(stream, line)) {
+        stripCarriageReturn(line);
         std::istringstream fields(line);
         std::string tag;
         fields >> tag;
@@ -104,6 +118,9 @@ bool ReplayData::deserialize(const std::string& text, ReplayData& output, std::s
         } else if (tag == "event") {
             std::uint32_t tick = 0; int action = 0; int value = 0;
             if (!(fields >> tick >> action >> value) || tick == 0 || action < 1 || action > 2 || value < 0 || value > 255) { if (error) *error = "invalid replay event"; return false; }
+            if (action == static_cast<int>(ReplayAction::Upgrade) && value > 2) { if (error) *error = "invalid replay upgrade choice"; return false; }
+            if (action == static_cast<int>(ReplayAction::Ultimate) && value != 0) { if (error) *error = "invalid replay ultimate value"; return false; }
+            if (!parsed.events.empty() && tick < parsed.events.back().tick) { if (error) *error = "replay events are not ordered by tick"; return false; }
             parsed.events.push_back({tick, static_cast<ReplayAction>(action), static_cast<std::uint8_t>(value)});
         } else {
             if (error) *error = "unknown replay record: " + tag;
@@ -162,7 +179,7 @@ bool replayFinalHash(const ReplayData& replay, std::uint32_t ticks, std::uint32_
 
 bool saveProfile(const std::string& path, const ProfileData& profile, std::string* error) {
     std::ostringstream stream;
-    stream << "TA_PROFILE 3\n"
+    stream << "TA_PROFILE 6\n"
            << "best_score " << profile.bestScore << "\n"
            << "best_wave " << profile.bestWave << "\n"
            << "runs_completed " << profile.runsCompleted << "\n"
@@ -172,7 +189,17 @@ bool saveProfile(const std::string& path, const ProfileData& profile, std::strin
            << "unlocked_skins " << profile.unlockedSkinsMask << "\n"
            << "equipped_skin " << static_cast<unsigned int>(profile.equippedSkin) << "\n"
            << "high_contrast " << (profile.highContrast ? 1 : 0) << "\n"
-           << "master_volume " << static_cast<unsigned int>(profile.masterVolume) << "\n";
+           << "master_volume " << static_cast<unsigned int>(profile.masterVolume) << "\n"
+           << "music_volume " << static_cast<unsigned int>(profile.musicVolume) << "\n"
+           << "sfx_volume " << static_cast<unsigned int>(profile.sfxVolume) << "\n"
+           << "ui_volume " << static_cast<unsigned int>(profile.uiVolume) << "\n"
+           << "ui_scale_percent " << static_cast<unsigned int>(profile.uiScalePercent) << "\n"
+           << "color_blind_palette " << static_cast<unsigned int>(profile.colorBlindPalette) << "\n"
+           << "subtitles " << (profile.subtitles ? 1 : 0) << "\n"
+           << "vibration " << (profile.vibration ? 1 : 0) << "\n";
+    for (std::size_t index = 0; index < profile.inputBindings.keyboard.size(); ++index) {
+        stream << "key_binding_" << index << ' ' << profile.inputBindings.keyboard[index] << "\n";
+    }
     return atomicWrite(path, stream.str(), error);
 }
 
@@ -180,10 +207,13 @@ bool loadProfile(const std::string& path, ProfileData& profile, std::string* err
     std::ifstream file(path, std::ios::binary);
     if (!file) { if (error) *error = "profile does not exist"; return false; }
     std::string line;
-    if (!std::getline(file, line) || (line != "TA_PROFILE 1" && line != "TA_PROFILE 2" && line != "TA_PROFILE 3")) { if (error) *error = "invalid profile header"; return false; }
+    if (!std::getline(file, line)) { if (error) *error = "invalid profile header"; return false; }
+    stripCarriageReturn(line);
+    if (line != "TA_PROFILE 1" && line != "TA_PROFILE 2" && line != "TA_PROFILE 3" && line != "TA_PROFILE 4" && line != "TA_PROFILE 5" && line != "TA_PROFILE 6") { if (error) *error = "invalid profile header"; return false; }
     ProfileData parsed;
-    parsed.version = line == "TA_PROFILE 3" ? 3u : (line == "TA_PROFILE 2" ? 2u : 1u);
+    parsed.version = line == "TA_PROFILE 6" ? 6u : (line == "TA_PROFILE 5" ? 5u : (line == "TA_PROFILE 4" ? 4u : (line == "TA_PROFILE 3" ? 3u : (line == "TA_PROFILE 2" ? 2u : 1u))));
     while (std::getline(file, line)) {
+        stripCarriageReturn(line);
         std::istringstream fields(line); std::string tag, value; fields >> tag >> value;
         if (tag.empty()) continue;
         if (tag == "best_score") { if (!parseInt(value, parsed.bestScore)) return false; }
@@ -196,6 +226,23 @@ bool loadProfile(const std::string& path, ProfileData& profile, std::string* err
         else if (tag == "equipped_skin") { std::uint32_t skin = 0; if (!parseUnsigned(value, skin) || skin > static_cast<std::uint32_t>(TowerSkin::Gold) || (parsed.unlockedSkinsMask & (1u << skin)) == 0) return false; parsed.equippedSkin = static_cast<std::uint8_t>(skin); }
         else if (tag == "high_contrast") { std::uint32_t flag = 0; if (!parseUnsigned(value, flag) || flag > 1) return false; parsed.highContrast = flag != 0; }
         else if (tag == "master_volume") { std::uint32_t volume = 0; if (!parseUnsigned(value, volume) || volume > 100) return false; parsed.masterVolume = static_cast<std::uint8_t>(volume); }
+        else if (tag == "music_volume") { std::uint32_t volume = 0; if (!parseUnsigned(value, volume) || volume > 100) return false; parsed.musicVolume = static_cast<std::uint8_t>(volume); }
+        else if (tag == "sfx_volume") { std::uint32_t volume = 0; if (!parseUnsigned(value, volume) || volume > 100) return false; parsed.sfxVolume = static_cast<std::uint8_t>(volume); }
+        else if (tag == "ui_volume") { std::uint32_t volume = 0; if (!parseUnsigned(value, volume) || volume > 100) return false; parsed.uiVolume = static_cast<std::uint8_t>(volume); }
+        else if (tag == "ui_scale_percent") { std::uint32_t scale = 0; if (!parseUnsigned(value, scale) || scale < 80 || scale > 140) return false; parsed.uiScalePercent = static_cast<std::uint8_t>(scale); }
+        else if (tag == "color_blind_palette") { std::uint32_t palette = 0; if (!parseUnsigned(value, palette) || palette > 2) return false; parsed.colorBlindPalette = static_cast<std::uint8_t>(palette); }
+        else if (tag == "subtitles") { std::uint32_t flag = 0; if (!parseUnsigned(value, flag) || flag > 1) return false; parsed.subtitles = flag != 0; }
+        else if (tag == "vibration") { std::uint32_t flag = 0; if (!parseUnsigned(value, flag) || flag > 1) return false; parsed.vibration = flag != 0; }
+        else if (tag.rfind("key_binding_", 0) == 0) {
+            const std::string indexText = tag.substr(std::string("key_binding_").size());
+            std::uint32_t index = 0;
+            int keycode = 0;
+            if (!parseUnsigned(indexText, index) || index >= parsed.inputBindings.keyboard.size() || !parseInt(value, keycode) || !validInputKey(keycode)) {
+                if (error) *error = "invalid profile key binding";
+                return false;
+            }
+            parsed.inputBindings.keyboard[index] = keycode;
+        }
         else { if (error) *error = "unknown profile record: " + tag; return false; }
     }
     profile = parsed;

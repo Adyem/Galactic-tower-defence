@@ -1,5 +1,6 @@
 #include "game.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <regex>
@@ -15,6 +16,25 @@ bool readFile(const std::filesystem::path& path, std::string& text, std::string*
     std::ifstream file(path);
     if (!file) { if (error) *error = "unable to open content file: " + path.string(); return false; }
     std::ostringstream stream; stream << file.rdbuf(); text = stream.str();
+    int braces = 0;
+    int brackets = 0;
+    bool quoted = false;
+    bool escaped = false;
+    for (char c : text) {
+        if (escaped) { escaped = false; continue; }
+        if (c == '\\' && quoted) { escaped = true; continue; }
+        if (c == '"') { quoted = !quoted; continue; }
+        if (quoted) continue;
+        if (c == '{') ++braces;
+        if (c == '}') --braces;
+        if (c == '[') ++brackets;
+        if (c == ']') --brackets;
+        if (braces < 0 || brackets < 0) break;
+    }
+    if (quoted || braces != 0 || brackets != 0) {
+        if (error) *error = "invalid JSON structure: " + path.string();
+        return false;
+    }
     return true;
 }
 
@@ -62,6 +82,9 @@ std::uint32_t contentFingerprint(const ContentConfig& content) {
     for (float value : content.enemyDamageResistance) addFloat(value);
     for (float value : content.enemyRadius) addFloat(value);
     for (float value : content.enemyTeleportCooldown) addFloat(value);
+    add(static_cast<std::uint32_t>(content.bossAttackCooldownTicks));
+    add(static_cast<std::uint32_t>(content.bossTelegraphTicks));
+    add(static_cast<std::uint32_t>(content.bossAttackLives));
     return hash == 0 ? 1u : hash;
 }
 
@@ -193,6 +216,16 @@ bool loadContentConfig(const std::string& directory, ContentConfig& output, std:
         parsed.enemyRadius[i] = enemyRadius[i];
         parsed.enemyTeleportCooldown[i] = enemyTeleport[i];
     }
+    std::vector<int> bossCooldownSeconds, bossTelegraphMilliseconds, bossAttackLives;
+    if (!numbersForKey(enemies, "attack_cooldown_seconds", bossCooldownSeconds) || !numbersForKey(enemies, "telegraph_ms", bossTelegraphMilliseconds) ||
+        !numbersForKey(enemies, "attack_lives", bossAttackLives) || bossCooldownSeconds.size() != 1 || bossTelegraphMilliseconds.size() != 1 || bossAttackLives.size() != 1 ||
+        bossCooldownSeconds[0] <= 0 || bossTelegraphMilliseconds[0] <= 0 || bossAttackLives[0] <= 0) {
+        if (error) *error = "boss content must define a positive cooldown, telegraph, and attack damage";
+        return false;
+    }
+    parsed.bossAttackCooldownTicks = bossCooldownSeconds[0] * 30;
+    parsed.bossTelegraphTicks = std::max(1, (bossTelegraphMilliseconds[0] * 30 + 999) / 1000);
+    parsed.bossAttackLives = bossAttackLives[0];
     output = parsed;
     return true;
 }

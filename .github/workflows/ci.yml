@@ -1,0 +1,44 @@
+name: Tower Ascend CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libsdl2-dev
+
+      - name: Configure and build GCC debug
+        run: |
+          cmake --preset linux-debug
+          cmake --build --preset linux-debug
+
+      - name: Run debug tests
+        run: |
+          ctest --test-dir build --output-on-failure
+          ./build/ta_balance_check 100
+
+      - name: Configure and build Clang
+        run: |
+          cmake --preset linux-clang
+          cmake --build --preset linux-clang
+
+      - name: Configure and run sanitizers
+        run: |
+          cmake --preset linux-asan
+          cmake --build --preset linux-asan
+          ASAN_OPTIONS=detect_leaks=0 ctest --test-dir build-asan --output-on-failure
+
+      - name: Build release and verify install
+        run: |
+          cmake --preset linux-release
+          cmake --build --preset linux-release
+          cmake --install build-release --prefix "$RUNNER_TEMP/tower-ascend-install"
+          TA_CONTENT_DIR="$RUNNER_TEMP/tower-ascend-install/share/tower_ascend/content" "$RUNNER_TEMP/tower-ascend-install/bin/tower_ascend" --headless

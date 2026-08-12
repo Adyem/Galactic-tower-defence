@@ -7,6 +7,6 @@
     {"id":"shielded","display":"Shielded","health_scale":1.45,"speed_scale":0.85,"damage_resistance":0.45,"radius":17.0,"teleport_cooldown":0.0},
     {"id":"swarmling","display":"Swarmling","health_scale":0.36,"speed_scale":1.35,"damage_resistance":0.0,"radius":8.0,"teleport_cooldown":0.0},
     {"id":"teleporter","display":"Teleporter","health_scale":1.1,"speed_scale":1.0,"damage_resistance":0.0,"radius":15.0,"teleport_cooldown":2.5},
-    {"id":"boss","display":"Ascendant Boss","health_scale":18.0,"speed_scale":0.42,"damage_resistance":0.0,"radius":34.0,"teleport_cooldown":0.0,"phases":2}
+    {"id":"boss","display":"Ascendant Boss","health_scale":18.0,"speed_scale":0.42,"damage_resistance":0.0,"radius":34.0,"teleport_cooldown":0.0,"phases":2,"attack_cooldown_seconds":15,"telegraph_ms":500,"attack_lives":2}
   ]
 }
