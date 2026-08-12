@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "arenas": [
+    {"id":"moonbase","display":"Moonbase","health_scale":1.0,"speed_scale":0.94,"path":"wide_sine","path_amplitude":120,"path_frequency":0.012},
+    {"id":"ember_crater","display":"Ember Crater","health_scale":1.15,"speed_scale":1.0,"path":"deep_sine","path_amplitude":155,"path_frequency":0.009},
+    {"id":"neon_ruins","display":"Neon Ruins","health_scale":1.0,"speed_scale":1.12,"path":"tight_sine","path_amplitude":82,"path_frequency":0.018}
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "ultimates": [
+    {"id":"meteor_rain","display":"Meteor Rain","effect":"multi_impact","cooldown_seconds":18,"damage_scale":1.0},
+    {"id":"bullet_storm","display":"Bullet Storm","effect":"fire_rate_burst","cooldown_seconds":18,"damage_scale":1.0},
+    {"id":"absolute_zero","display":"Absolute Zero","effect":"global_freeze","cooldown_seconds":18,"damage_scale":1.0},
+    {"id":"gravity_shift","display":"Gravity Shift","effect":"rewind_and_stun","cooldown_seconds":18,"damage_scale":1.0},
+    {"id":"energy_surge","display":"Energy Surge","effect":"global_burst","cooldown_seconds":18,"damage_scale":1.15}
+  ]
+}

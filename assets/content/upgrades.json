@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "upgrades": [
+    {"id":"piercing_shots", "display":"Piercing Shots", "effect":"pierce", "weight":1.0,"value_a":2,"value_b":0,"tags":["kinetic"]},
+    {"id":"ricochet", "display":"Ricochet", "effect":"bounce", "weight":1.0,"value_a":1,"value_b":0,"tags":["kinetic"]},
+    {"id":"overclock", "display":"Overclock", "effect":"fire_rate", "weight":0.9,"value_a":2,"value_b":0,"tags":["kinetic"]},
+    {"id":"cluster_bombs", "display":"Cluster Bombs", "effect":"splash", "weight":1.0,"value_a":92,"value_b":0.45,"tags":["explosive"]},
+    {"id":"shockwave", "display":"Shockwave", "effect":"stun", "weight":0.9,"value_a":1.25,"value_b":115,"tags":["explosive","control"]},
+    {"id":"fireball_shells", "display":"Fireball Shells", "effect":"burn_area", "weight":0.85,"value_a":4,"value_b":13,"tags":["fire"]},
+    {"id":"chain_lightning", "display":"Chain Lightning", "effect":"chain", "weight":0.8,"value_a":0.42,"value_b":0.70,"tags":["electric"]},
+    {"id":"freezing_blast", "display":"Freezing Blast", "effect":"slow", "weight":1.0,"value_a":2,"value_b":0.45,"tags":["ice","control"]},
+    {"id":"burning_shot", "display":"Burning Shot", "effect":"burn", "weight":0.9,"value_a":3,"value_b":11,"tags":["fire"]},
+    {"id":"black_hole", "display":"Black Hole", "effect":"pull", "weight":0.75,"value_a":85,"value_b":12,"tags":["gravity","area"]},
+    {"id":"emergency_repair", "display":"Emergency Repair", "effect":"heal", "weight":0.8,"value_a":4,"value_b":0,"tags":["utility"]},
+    {"id":"scavenger", "display":"Scavenger", "effect":"damage_currency", "weight":1.0,"value_a":0.12,"value_b":20,"tags":["utility"]},
+    {"id":"wind_shear", "display":"Wind Shear", "effect":"tornado_reaction", "weight":0.8,"value_a":125,"value_b":0.25,"tags":["wind"]},
+    {"id":"poison_coil", "display":"Poison Coil", "effect":"poison", "weight":0.8,"value_a":5,"value_b":7,"tags":["poison"]},
+    {"id":"teleport_trap", "display":"Teleport Trap", "effect":"displace", "weight":0.75,"value_a":90,"value_b":18,"tags":["teleport"]}
+  ]
+}

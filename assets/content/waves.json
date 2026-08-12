@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "waves": [
+    {"wave":1,"enemy_budget":9,"spawn_interval_ticks":18,"boss":false,"grunt_weight":100,"runner_weight":0,"tank_weight":0,"shielded_weight":0,"swarmling_weight":0,"teleporter_weight":0,"boss_weight":0},
+    {"wave":2,"enemy_budget":11,"spawn_interval_ticks":17,"boss":false,"grunt_weight":80,"runner_weight":20,"tank_weight":0,"shielded_weight":0,"swarmling_weight":0,"teleporter_weight":0,"boss_weight":0},
+    {"wave":3,"enemy_budget":13,"spawn_interval_ticks":16,"boss":false,"grunt_weight":65,"runner_weight":20,"tank_weight":15,"shielded_weight":0,"swarmling_weight":0,"teleporter_weight":0,"boss_weight":0},
+    {"wave":4,"enemy_budget":15,"spawn_interval_ticks":15,"boss":false,"grunt_weight":60,"runner_weight":15,"tank_weight":15,"shielded_weight":10,"swarmling_weight":0,"teleporter_weight":0,"boss_weight":0},
+    {"wave":5,"enemy_budget":17,"spawn_interval_ticks":14,"boss":false,"grunt_weight":50,"runner_weight":15,"tank_weight":15,"shielded_weight":10,"swarmling_weight":10,"teleporter_weight":0,"boss_weight":0},
+    {"wave":6,"enemy_budget":19,"spawn_interval_ticks":13,"boss":false,"grunt_weight":45,"runner_weight":15,"tank_weight":15,"shielded_weight":10,"swarmling_weight":10,"teleporter_weight":5,"boss_weight":0},
+    {"wave":7,"enemy_budget":21,"spawn_interval_ticks":12,"boss":false,"grunt_weight":40,"runner_weight":15,"tank_weight":15,"shielded_weight":10,"swarmling_weight":10,"teleporter_weight":10,"boss_weight":0},
+    {"wave":8,"enemy_budget":23,"spawn_interval_ticks":11,"boss":false,"grunt_weight":35,"runner_weight":15,"tank_weight":20,"shielded_weight":10,"swarmling_weight":10,"teleporter_weight":10,"boss_weight":0},
+    {"wave":9,"enemy_budget":25,"spawn_interval_ticks":10,"boss":false,"grunt_weight":30,"runner_weight":15,"tank_weight":20,"shielded_weight":12,"swarmling_weight":10,"teleporter_weight":13,"boss_weight":0},
+    {"wave":10,"enemy_budget":1,"spawn_interval_ticks":1,"boss":true,"grunt_weight":0,"runner_weight":0,"tank_weight":0,"shielded_weight":0,"swarmling_weight":0,"teleporter_weight":0,"boss_weight":100}
+  ]
+}

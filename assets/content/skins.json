@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "skins": [
+    {"id":"azure","display":"Azure","cosmetic_only":true},
+    {"id":"ember","display":"Ember","cosmetic_only":true,"unlock_cost_shards":100},
+    {"id":"nebula","display":"Nebula","cosmetic_only":true,"unlock_cost_shards":100},
+    {"id":"verdant","display":"Verdant","cosmetic_only":true,"unlock_cost_shards":100},
+    {"id":"gold","display":"Gold","cosmetic_only":true,"unlock_cost_shards":100}
+  ]
+}

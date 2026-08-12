@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "weapons": [
+    {"id":"rapid_fire", "display":"Rapid Fire Gun", "damage":18, "cooldown_ticks":6, "projectile_speed":720, "tags":["kinetic","single_target"]},
+    {"id":"explosive_cannon", "display":"Explosive Cannon", "damage":88, "cooldown_ticks":24, "projectile_speed":440, "tags":["explosive","area"]},
+    {"id":"arcane_beam", "display":"Arcane Beam", "damage":23, "cooldown_ticks":2, "projectile_speed":0, "tags":["arcane","sustain"]},
+    {"id":"frost_blaster", "display":"Frost Blaster", "damage":12, "cooldown_ticks":14, "projectile_speed":540, "tags":["ice","control"]},
+    {"id":"sniper_railgun", "display":"Sniper Railgun", "damage":260, "cooldown_ticks":42, "projectile_speed":1200, "tags":["kinetic","burst"]}
+  ]
+}

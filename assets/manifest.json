@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "generated_placeholder_policy": "vector_geometry_until_final_art_pass",
+  "assets": [
+    {"id":"content.weapons","type":"json","runtime_path":"content/weapons.json","license":"project"},
+    {"id":"content.upgrades","type":"json","runtime_path":"content/upgrades.json","license":"project"},
+    {"id":"content.skulls","type":"json","runtime_path":"content/skulls.json","license":"project"},
+    {"id":"content.waves","type":"json","runtime_path":"content/waves.json","license":"project"},
+    {"id":"content.enemies","type":"json","runtime_path":"content/enemies.json","license":"project"}
+    ,{"id":"content.ultimates","type":"json","runtime_path":"content/ultimates.json","license":"project"},
+    {"id":"content.skins","type":"json","runtime_path":"content/skins.json","license":"project"},
+    {"id":"content.arenas","type":"json","runtime_path":"content/arenas.json","license":"project"}
+  ]
+}
