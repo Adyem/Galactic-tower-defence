@@ -1,0 +1,10 @@
+{
+  "max_allied_units": 64,
+  "allies": [
+    {"id":"soldier","display":"SOLDIER","short_description":"A front-line fighter.","long_description":"A short-lived melee ally that advances toward the nearest enemy.","description":"A short-lived front-line fighter.","role":"melee","icon_id":"ally_soldier","strengths":["single targets"],"weaknesses":["area damage"],"synergy_tags":["summon","ally"]},
+    {"id":"striker","display":"STRIKER","short_description":"A fast damage ally.","long_description":"A faster ally specialised for single-target damage and priority targets.","description":"A faster ally specialised for single-target damage.","role":"damage","icon_id":"ally_striker","strengths":["bosses"],"weaknesses":["swarms"],"synergy_tags":["summon","single_target"]},
+    {"id":"bulwark","display":"BULWARK","short_description":"A durable defender.","long_description":"A durable ally that buys time near the front and protects other summons.","description":"A durable ally that buys time near the front.","role":"tank","icon_id":"ally_bulwark","strengths":["leak prevention"],"weaknesses":["low damage"],"synergy_tags":["summon","defense"]},
+    {"id":"drone","display":"DRONE","short_description":"A fast support attacker.","long_description":"A fast autonomous ally that contributes repeated attacks while it survives.","description":"A fast autonomous support attacker.","role":"ranged","icon_id":"ally_drone","strengths":["mixed waves"],"weaknesses":["short lifetime"],"synergy_tags":["summon","multi_target"]},
+    {"id":"disruptor","display":"DISRUPTOR","short_description":"A control drone.","long_description":"A drone that applies slow and weakness to make the rest of the build more effective.","description":"A drone that applies control effects.","role":"control","icon_id":"ally_disruptor","strengths":["fast enemies"],"weaknesses":["control resistance"],"synergy_tags":["summon","control"]}
+  ]
+}

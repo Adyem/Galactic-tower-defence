@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "synergies": [
+    {"id":"fire_wind", "display":"FIRE + WIND", "short_description":"Burning areas spread into damaging tornado zones.", "long_description":"Burning area plus Wind Shear amplifies delayed area damage and rewards enemies being held in place.", "strengths":["clusters","burning_targets"], "weaknesses":["fast_targets"], "synergy_tags":["fire","wind","area"], "icon_id":"synergy.fire_wind"},
+    {"id":"ice_electric", "display":"ICE + ELECTRIC", "short_description":"Slowed targets make chain damage more reliable.", "long_description":"Frozen or slowed targets create reaction windows that make Chain Lightning and electric follow-up stronger.", "strengths":["runners","clusters"], "weaknesses":["control_resistant"], "synergy_tags":["ice","electric","chain"], "icon_id":"synergy.ice_electric"},
+    {"id":"poison_teleport", "display":"POISON + TELEPORT", "short_description":"Displacement keeps enemies inside poison routes.", "long_description":"Teleport Trap displacement triggers poison reactions and buys time for damage-over-time effects to finish.", "strengths":["teleporters","tanks"], "weaknesses":["short_waves"], "synergy_tags":["poison","teleport","control"], "icon_id":"synergy.poison_teleport"},
+    {"id":"pierce_ricochet", "display":"PIERCE + RICOCHET", "short_description":"Kinetic coverage turns single-target fire into lane control.", "long_description":"Piercing aligned targets and bouncing between them lets precise weapons answer dense waves without losing priority damage.", "strengths":["swarms","aligned_targets"], "weaknesses":["spread_waves"], "synergy_tags":["kinetic","pierce","bounce"], "icon_id":"synergy.pierce_ricochet"},
+    {"id":"ultimate_evolutions", "display":"ULTIMATE EVOLUTIONS", "short_description":"Legendary sidegrades specialize the entire loadout.", "long_description":"Each evolution changes an ultimate’s role, adding a strength and a tradeoff that should shape the rest of the build.", "strengths":["specialization","late_progression"], "weaknesses":["wrong_matchup"], "synergy_tags":["legendary","specialization"], "icon_id":"synergy.ultimate_evolutions"}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "statuses": [
+    {"id":"slow","display":"SLOW","short_description":"Reduces enemy movement speed.","long_description":"Slow buys time for the tower and improves the reliability of area effects.","description":"Reduces enemy movement speed.","icon_id":"status_slow","strengths":["fast enemies"],"weaknesses":["control resistance"],"synergy_tags":["ice","control"]},
+    {"id":"weakness","display":"WEAKNESS","short_description":"Increases damage received.","long_description":"Weakness makes marked enemies vulnerable to tower and allied attacks.","description":"Increases damage received from the tower and allied units.","icon_id":"status_weakness","strengths":["armored enemies"],"weaknesses":["short duration"],"synergy_tags":["debuff","burst"]},
+    {"id":"stun","display":"STUN","short_description":"Stops an enemy briefly.","long_description":"Stun interrupts movement and creates a window for focused damage.","description":"Temporarily stops an enemy from advancing.","icon_id":"status_stun","strengths":["boss phases"],"weaknesses":["control resistance"],"synergy_tags":["control","explosive"]},
+    {"id":"burn","display":"BURN","short_description":"Deals damage over time.","long_description":"Burn continues damaging enemies after the originating hit and rewards duration.","description":"Deals damage over time.","icon_id":"status_burn","strengths":["high-health enemies"],"weaknesses":["short runs"],"synergy_tags":["fire","wind"]},
+    {"id":"shield","display":"SHIELD","short_description":"Absorbs allied damage.","long_description":"A shield preserves allied units and buildings long enough to contribute their damage.","description":"Absorbs damage for an allied unit.","icon_id":"status_shield","strengths":["summon builds"],"weaknesses":["area damage"],"synergy_tags":["ally","defense"]}
+  ]
+}

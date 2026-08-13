@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "support_modules": [
+    {"id":"none", "display":"No Support", "short_description":"Pure primary build.", "long_description":"Commit every slot to the primary weapon and in-run upgrade route.", "strengths":["purist"], "weaknesses":["utility"], "synergy_tags":["kinetic"], "icon_id":"support.none", "effect":"none", "tags":["purist"]},
+    {"id":"credit_relay", "display":"Credit Relay", "short_description":"Earn extra run Credits from kills.", "long_description":"Economy grows through ordinary kills and boss rewards, especially in long runs.", "strengths":["endless","greed"], "weaknesses":["early_burst"], "synergy_tags":["economy","status"], "icon_id":"support.credit_relay", "effect":"economy", "tags":["economy"]},
+    {"id":"stasis_field", "display":"Stasis Field", "short_description":"Applies a light lane slow to enemies.", "long_description":"A constant control layer extends reaction windows for ice, electric, and area builds.", "strengths":["runners","haste"], "weaknesses":["bosses"], "synergy_tags":["control","ice","electric"], "icon_id":"support.stasis_field", "effect":"control", "tags":["control","ice"]},
+    {"id":"repair_drones", "display":"Repair Drones", "short_description":"Restore one life every eight kills.", "long_description":"A defensive cadence makes risky skulls more forgiving without adding raw damage.", "strengths":["glass_cannon","leaks"], "weaknesses":["damage_checks"], "synergy_tags":["defense","utility"], "icon_id":"support.repair_drones", "effect":"defense", "tags":["defense","utility"]},
+    {"id":"corrosion_amp", "display":"Corrosion Amp", "short_description":"Damage burning or poisoned targets harder.", "long_description":"Status damage becomes a force multiplier when Fire or Poison is already active.", "strengths":["tanks","status"], "weaknesses":["clean_targets"], "synergy_tags":["fire","poison","status"], "icon_id":"support.corrosion_amp", "effect":"status_damage", "tags":["fire","poison","status"]}
+  ]
+}

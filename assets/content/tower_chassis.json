@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "tower_chassis": [
+    {"id":"vanguard", "display":"Vanguard", "short_description":"The flexible baseline chassis.", "long_description":"Reliable fire and no special penalty. Vanguard keeps every weapon and support route available.", "strengths":["flexibility"], "weaknesses":["no_specialization"], "synergy_tags":["generalist"], "icon_id":"chassis.vanguard", "weapon_damage_scale":1.0, "weapon_cooldown_scale":1.0, "ultimate_cooldown_scale":1.0, "lives_bonus":0},
+    {"id":"bastion", "display":"Bastion", "short_description":"Extra lives at the cost of firing tempo.", "long_description":"Bastion absorbs leaks and protects risky builds, but its heavier frame attacks more slowly.", "strengths":["survival","leaks"], "weaknesses":["tempo"], "synergy_tags":["defense"], "icon_id":"chassis.bastion", "weapon_damage_scale":0.92, "weapon_cooldown_scale":1.10, "ultimate_cooldown_scale":1.10, "lives_bonus":4},
+    {"id":"catalyst", "display":"Catalyst", "short_description":"Cycles ultimates more quickly.", "long_description":"Catalyst turns ultimate timing into the build identity while leaving weapon output neutral.", "strengths":["ultimate","status"], "weaknesses":["base_survival"], "synergy_tags":["ultimate","reaction"], "icon_id":"chassis.catalyst", "weapon_damage_scale":1.0, "weapon_cooldown_scale":1.0, "ultimate_cooldown_scale":0.82, "lives_bonus":0}
+  ]
+}

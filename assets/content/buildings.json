@@ -1,0 +1,10 @@
+{
+  "max_buildings": 16,
+  "max_skill_zones": 24,
+  "buildings": [
+    {"id":"barracks","display":"BARRACKS","short_description":"Produces soldiers.","long_description":"A temporary structure that periodically summons front-line soldiers.","description":"Periodically summons soldiers.","role":"summoner","icon_id":"building_barracks","strengths":["lane pressure"],"weaknesses":["building contact damage"],"synergy_tags":["summon","ally"]},
+    {"id":"armory","display":"FIELD ARMORY","short_description":"Produces elite soldiers.","long_description":"A temporary structure that summons fewer but stronger soldiers.","description":"Summons fewer but stronger soldiers.","role":"summoner_elite","icon_id":"building_armory","strengths":["armored targets"],"weaknesses":["slow tempo"],"synergy_tags":["summon","single_target"]},
+    {"id":"sentry","display":"SENTRY","short_description":"Fires at nearby enemies.","long_description":"A temporary autonomous tower that attacks the nearest enemy in range.","description":"Fires at nearby enemies.","role":"turret","icon_id":"building_sentry","strengths":["sustained damage"],"weaknesses":["short lifetime"],"synergy_tags":["building","tower"]},
+    {"id":"mortar","display":"MORTAR POST","short_description":"Bombards enemy groups.","long_description":"A temporary artillery post that trades rate of fire for slow area shells.","description":"Fires slow area shells at enemy groups.","role":"artillery","icon_id":"building_mortar","strengths":["swarms"],"weaknesses":["isolated targets"],"synergy_tags":["building","area","control"]}
+  ]
+}

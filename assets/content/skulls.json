@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "skulls": [
-    {"id":"swarm", "display":"Swarm", "score_multiplier":1.25, "spawn_scale":1.50, "speed_scale":1.0, "lives":20, "currency_bonus":0, "boss_currency_bonus":0, "description":"More enemies per wave"},
-    {"id":"glass_cannon", "display":"Glass Cannon", "score_multiplier":1.40, "spawn_scale":1.0, "speed_scale":1.0, "lives":10, "currency_bonus":0, "boss_currency_bonus":0, "description":"Start with fewer lives"},
-    {"id":"haste", "display":"Haste", "score_multiplier":1.30, "spawn_scale":1.0, "speed_scale":1.25, "lives":20, "currency_bonus":0, "boss_currency_bonus":0, "description":"Enemies move faster"},
-    {"id":"greed", "display":"Greed", "score_multiplier":1.50, "spawn_scale":1.0, "speed_scale":1.0, "lives":20, "currency_bonus":3, "boss_currency_bonus":50, "description":"Higher score and currency"}
+    {"id":"swarm", "display":"Swarm", "short_description":"More enemies per wave.", "long_description":"Area coverage becomes a requirement as spawn pressure rises.", "strengths":["high_reward"], "weaknesses":["single_target"], "synergy_tags":["area","chain"], "icon_id":"skull.swarm", "score_multiplier":1.25, "spawn_scale":1.50, "speed_scale":1.0, "lives":20, "currency_bonus":0, "boss_currency_bonus":0, "description":"More enemies per wave"},
+    {"id":"glass_cannon", "display":"Glass Cannon", "short_description":"Start with fewer lives.", "long_description":"Every leak matters; defensive upgrades and control gain value.", "strengths":["high_reward"], "weaknesses":["leaks"], "synergy_tags":["defense","control"], "icon_id":"skull.glass_cannon", "score_multiplier":1.40, "spawn_scale":1.0, "speed_scale":1.0, "lives":10, "currency_bonus":0, "boss_currency_bonus":0, "description":"Start with fewer lives"},
+    {"id":"haste", "display":"Haste", "short_description":"Enemies move faster.", "long_description":"Fast targets demand slow, stun, push, or rapid target acquisition.", "strengths":["high_reward"], "weaknesses":["slow_builds"], "synergy_tags":["control","rate"], "icon_id":"skull.haste", "score_multiplier":1.30, "spawn_scale":1.0, "speed_scale":1.25, "lives":20, "currency_bonus":0, "boss_currency_bonus":0, "description":"Enemies move faster"},
+    {"id":"greed", "display":"Greed", "short_description":"Higher score and currency.", "long_description":"A reward modifier that makes economy and delayed damage more valuable.", "strengths":["economy"], "weaknesses":["low_damage"], "synergy_tags":["economy","status"], "icon_id":"skull.greed", "score_multiplier":1.50, "spawn_scale":1.0, "speed_scale":1.0, "lives":20, "currency_bonus":3, "boss_currency_bonus":50, "description":"Higher score and currency"}
   ]
 }

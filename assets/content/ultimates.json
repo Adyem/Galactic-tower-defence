@@ -1,10 +1,10 @@
 {
   "schema": 1,
   "ultimates": [
-    {"id":"meteor_rain","display":"Meteor Rain","effect":"multi_impact","cooldown_seconds":18,"damage_scale":1.0},
-    {"id":"bullet_storm","display":"Bullet Storm","effect":"fire_rate_burst","cooldown_seconds":18,"damage_scale":1.0},
-    {"id":"absolute_zero","display":"Absolute Zero","effect":"global_freeze","cooldown_seconds":18,"damage_scale":1.0},
-    {"id":"gravity_shift","display":"Gravity Shift","effect":"rewind_and_stun","cooldown_seconds":18,"damage_scale":1.0},
-    {"id":"energy_surge","display":"Energy Surge","effect":"global_burst","cooldown_seconds":18,"damage_scale":1.15}
+    {"id":"meteor_rain","display":"Meteor Rain","short_description":"Multi-impact area damage.","long_description":"Drop several impacts across the lane to clear groups or specialize them through an evolution.","strengths":["swarms","clusters"],"weaknesses":["spread_targets"],"synergy_tags":["area","fire","burst"],"icon_id":"ultimate.meteor_rain","effect":"multi_impact","cooldown_seconds":18,"damage_scale":1.0},
+    {"id":"bullet_storm","display":"Bullet Storm","short_description":"Temporarily accelerates weapon fire.","long_description":"A kinetic burst that rewards sustained primary fire and control evolutions.","strengths":["runners","sustained_damage"],"weaknesses":["isolated_bosses"],"synergy_tags":["kinetic","rate","control"],"icon_id":"ultimate.bullet_storm","effect":"fire_rate_burst","cooldown_seconds":18,"damage_scale":1.0},
+    {"id":"absolute_zero","display":"Absolute Zero","short_description":"Freeze the entire lane.","long_description":"Global control creates a window for shatter, poison, burn, or electric follow-up.","strengths":["haste","runners"],"weaknesses":["control_resistant"],"synergy_tags":["ice","control","status"],"icon_id":"ultimate.absolute_zero","effect":"global_freeze","cooldown_seconds":18,"damage_scale":1.0},
+    {"id":"gravity_shift","display":"Gravity Shift","short_description":"Rewind and stun advanced enemies.","long_description":"Reset the most dangerous positions and create a cluster for area damage.","strengths":["teleporters","leaks"],"weaknesses":["lone_bosses"],"synergy_tags":["gravity","control","area"],"icon_id":"ultimate.gravity_shift","effect":"rewind_and_stun","cooldown_seconds":18,"damage_scale":1.0},
+    {"id":"energy_surge","display":"Energy Surge","short_description":"Global burst with a weapon overdrive route.","long_description":"A flexible ultimate that can become weapon power, chaining status, or execute damage.","strengths":["mixed_waves","bosses"],"weaknesses":["long_cooldown"],"synergy_tags":["energy","status","burst"],"icon_id":"ultimate.energy_surge","effect":"global_burst","cooldown_seconds":18,"damage_scale":1.15}
   ]
 }

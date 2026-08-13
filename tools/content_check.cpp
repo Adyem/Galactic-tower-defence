@@ -10,6 +10,7 @@
 #include <string>
 #include <regex>
 #include <set>
+#include <map>
 #include <vector>
 
 namespace {
@@ -100,6 +101,141 @@ bool validateUpgradeEffects(const std::filesystem::path& path) {
         if (allowed.find((*it)[1].str()) == allowed.end()) { std::cerr << "invalid upgrade effect reference '" << (*it)[1].str() << "'\n"; ok = false; }
     }
     if (count != 15) { std::cerr << "upgrades content must define fifteen effect references\n"; ok = false; }
+    return ok;
+}
+
+bool validateUpgradeConstraints(const std::filesystem::path& path) {
+    std::ifstream input(path);
+    if (!input) return false;
+    std::ostringstream buffer; buffer << input.rdbuf();
+    const std::string text = buffer.str();
+    bool ok = true;
+    const char* fields[] = {"prerequisites", "exclusions", "max_stacks"};
+    for (const char* field : fields) {
+        const std::regex pattern(std::string("\\\"") + field + "\\\"\\s*:");
+        int count = 0;
+        for (std::sregex_iterator it(text.begin(), text.end(), pattern), end; it != end; ++it) ++count;
+        if (count != 15) { std::cerr << "upgrade constraint field '" << field << "' count mismatch in " << path << '\n'; ok = false; }
+    }
+    const std::regex stackPattern("\\\"max_stacks\\\"\\s*:\\s*(\\d+)");
+    for (std::sregex_iterator it(text.begin(), text.end(), stackPattern), end; it != end; ++it) {
+        if (std::stoi((*it)[1].str()) < 1) { std::cerr << "upgrade max_stacks must be positive\n"; ok = false; }
+    }
+    return ok;
+}
+
+bool validateMetadata(const std::filesystem::path& path, int expectedRecords) {
+    std::ifstream input(path);
+    if (!input) return false;
+    std::ostringstream buffer; buffer << input.rdbuf();
+    const std::string text = buffer.str();
+    const char* fields[] = {"short_description", "long_description", "strengths", "weaknesses", "synergy_tags", "icon_id"};
+    bool ok = true;
+    for (const char* field : fields) {
+        const std::regex pattern(std::string("\\\"") + field + "\\\"\\s*:");
+        int count = 0;
+        for (std::sregex_iterator it(text.begin(), text.end(), pattern), end; it != end; ++it) ++count;
+        if (count != expectedRecords) { std::cerr << "metadata field '" << field << "' count mismatch in " << path << '\n'; ok = false; }
+    }
+    return ok;
+}
+
+bool validateDailyRecipeMetadata(const std::filesystem::path& path, int expectedRecords) {
+    std::ifstream input(path);
+    if (!input) return false;
+    std::ostringstream buffer; buffer << input.rdbuf();
+    const std::string text = buffer.str();
+    const char* fields[] = {"long_description", "theme_tags", "enemy_roster", "enemy_prevalence", "threat_summary", "recommended_upgrade_tags", "wave_budget_scale", "enemy_health_scale", "enemy_speed_scale", "required_weapon", "required_chassis", "required_skull", "required_arena"};
+    bool ok = true;
+    for (const char* field : fields) {
+        const std::regex pattern(std::string("\\\"") + field + "\\\"\\s*:");
+        int count = 0;
+        for (std::sregex_iterator it(text.begin(), text.end(), pattern), end; it != end; ++it) ++count;
+        if (count != expectedRecords) { std::cerr << "daily metadata field '" << field << "' count mismatch in " << path << '\n'; ok = false; }
+    }
+    return ok;
+}
+
+bool validateDailyRecipeReferences(const std::filesystem::path& path) {
+    std::ifstream input(path);
+    if (!input) return false;
+    std::ostringstream buffer; buffer << input.rdbuf();
+    const std::string text = buffer.str();
+    const std::set<std::string> weapons{"none", "rapid_fire", "explosive_cannon", "arcane_beam", "frost_blaster", "sniper_railgun"};
+    const std::set<std::string> ultimates{"meteor_rain", "bullet_storm", "absolute_zero", "gravity_shift", "energy_surge"};
+    const std::set<std::string> supports{"none", "credit_relay", "stasis_field", "repair_drones", "corrosion_amp"};
+    const std::set<std::string> evolutions{"none", "solar_aftermath", "extinction_spear", "shattered_sky", "resonant_arsenal", "suppressive_grid", "execution_protocol", "brittle_singularity", "permafrost_engine", "cold_conductor", "event_horizon", "chrono_reversal", "mass_driver", "overdrive_link", "chain_reactor", "terminal_discharge"};
+    const std::set<std::string> chassis = {"none", "vanguard", "bastion", "catalyst"};
+    const std::set<std::string> skulls = {"swarm", "glass_cannon", "haste", "greed"};
+    const std::set<std::string> arenas = {"moonbase", "ember_crater", "neon_ruins"};
+    const std::pair<const char*, const std::set<std::string>*> fields[] = {{"required_weapon", &weapons}, {"required_chassis", &chassis}, {"required_ultimate", &ultimates}, {"required_support", &supports}, {"required_evolution", &evolutions}, {"required_skull", &skulls}, {"required_arena", &arenas}};
+    bool ok = true;
+    for (const auto& field : fields) {
+        const std::regex pattern(std::string("\\\"") + field.first + "\\\"\\s*:\\s*\\\"([^\\\"]*)\\\"");
+        int count = 0;
+        for (std::sregex_iterator it(text.begin(), text.end(), pattern), end; it != end; ++it) {
+            ++count;
+            if (field.second->find((*it)[1].str()) == field.second->end()) { std::cerr << "invalid daily " << field.first << " reference '" << (*it)[1].str() << "'\n"; ok = false; }
+        }
+        if (count != 7) { std::cerr << "daily field '" << field.first << "' must appear seven times\n"; ok = false; }
+    }
+    return ok;
+}
+
+bool validateSkillContent(const std::filesystem::path& skillsPath, const std::filesystem::path& treesPath) {
+    std::ifstream skillsInput(skillsPath);
+    std::ifstream treesInput(treesPath);
+    if (!skillsInput || !treesInput) return false;
+    std::ostringstream skillsBuffer; skillsBuffer << skillsInput.rdbuf();
+    std::ostringstream treesBuffer; treesBuffer << treesInput.rdbuf();
+    const std::string skills = skillsBuffer.str();
+    const std::string trees = treesBuffer.str();
+    const std::regex idPattern("\\\"id\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
+    const char* expected[] = {"gravity_well", "phase_mine", "vanguard_drop", "forward_barracks", "ruin_hex", "rally_beacon", "sentry_fabricator", "cryo_field", "drone_swarm", "resonance_pulse"};
+    std::set<std::string> ids;
+    bool ok = true;
+    for (std::sregex_iterator it(skills.begin(), skills.end(), idPattern), end; it != end; ++it) ids.insert((*it)[1].str());
+    for (const char* id : expected) if (ids.find(id) == ids.end()) { std::cerr << "missing skill id '" << id << "'\n"; ok = false; }
+    if (ids.size() != std::size(expected)) { std::cerr << "skill definition count mismatch\n"; ok = false; }
+    for (const char* field : {"short_description", "long_description", "icon_id", "effect", "target_mode", "cooldown_ticks", "charges", "duration_ticks", "range", "radius", "value_a", "value_b", "tags"}) {
+        const std::regex fieldPattern(std::string("\\\"") + field + "\\\"\\s*:");
+        int count = 0;
+        for (std::sregex_iterator it(skills.begin(), skills.end(), fieldPattern), end; it != end; ++it) ++count;
+        if (count != 10) { std::cerr << "skill field '" << field << "' count mismatch\n"; ok = false; }
+    }
+    const int nodeCount = static_cast<int>(std::distance(std::sregex_iterator(trees.begin(), trees.end(), idPattern), std::sregex_iterator()));
+    if (nodeCount < 30) { std::cerr << "skill tree must define at least thirty nodes\n"; ok = false; }
+    for (const char* field : {"skill_id", "parent_id", "branch_id", "display", "description", "icon_layer", "tier", "max_rank", "cost"}) {
+        const std::regex fieldPattern(std::string("\\\"") + field + "\\\"\\s*:");
+        int count = 0;
+        for (std::sregex_iterator it(trees.begin(), trees.end(), fieldPattern), end; it != end; ++it) ++count;
+        if (count != nodeCount) { std::cerr << "skill tree field '" << field << "' count mismatch\n"; ok = false; }
+    }
+    std::map<std::string, std::set<std::string>> branches;
+    std::map<std::string, int> highestTier;
+    const std::regex nodeRecordPattern("\\{[^{}]*\\}");
+    const auto stringField = [](const std::string& record, const char* key) {
+        std::smatch match;
+        if (std::regex_search(record, match, std::regex(std::string("\\\"") + key + "\\\"\\s*:\\s*\\\"([^\\\"]*)\\\""))) return match[1].str();
+        return std::string{};
+    };
+    const auto integerField = [](const std::string& record, const char* key) {
+        std::smatch match;
+        if (std::regex_search(record, match, std::regex(std::string("\\\"") + key + "\\\"\\s*:\\s*(-?[0-9]+)"))) return std::stoi(match[1].str());
+        return 0;
+    };
+    for (std::sregex_iterator it(trees.begin(), trees.end(), nodeRecordPattern), end; it != end; ++it) {
+        const std::string record = (*it)[0].str();
+        const std::string skill = stringField(record, "skill_id");
+        const std::string branch = stringField(record, "branch_id");
+        const int tier = integerField(record, "tier");
+        if (!skill.empty() && tier >= 2) branches[skill].insert(branch);
+        highestTier[skill] = std::max(highestTier[skill], tier);
+    }
+    for (const char* skill : expected) if (branches[skill].size() < 2u || highestTier[skill] < 4) {
+        std::cerr << "skill tree lacks two branches or a tier-four capstone for '" << skill << "'\n";
+        ok = false;
+    }
     return ok;
 }
 
@@ -211,28 +347,77 @@ bool validateManifest(const std::filesystem::path& contentRoot) {
 int main(int argc, char** argv) {
     const std::filesystem::path root = argc > 1 ? argv[1] : "assets/content";
     const Requirement requirements[] = {
+        {"run_types.json", {"standard", "endless", "daily", "short_description", "long_description", "strengths", "weaknesses", "synergy_tags", "icon_id", "expected_minutes", "wave_limit", "reward_multiplier", "workshop_active", "rules"}},
+        {"tower_chassis.json", {"vanguard", "bastion", "catalyst", "weapon_damage_scale", "weapon_cooldown_scale", "ultimate_cooldown_scale", "lives_bonus", "short_description", "synergy_tags"}},
+        {"support_modules.json", {"none", "credit_relay", "stasis_field", "repair_drones", "corrosion_amp", "short_description", "effect"}},
+        {"currencies.json", {"credits", "core_parts", "shards", "legend_cores", "short_description", "long_description", "strengths", "weaknesses", "synergy_tags", "icon_id"}},
+        {"workshop.json", {"tower_core", "module_rapid_fire", "module_explosive_cannon", "module_arcane_beam", "module_frost_blaster", "module_sniper_railgun", "support_credit_relay", "support_stasis_field", "support_repair_drones", "support_corrosion_amp", "short_description", "long_description", "synergy_tags", "icon_id", "base_cost", "cost_step", "max_level"}},
+        {"daily_challenges.json", {"frozen_circuit", "last_shell", "swarm_protocol", "toxic_transit", "blackout", "no_safe_distance", "burning_economy", "theme_index", "required_chassis", "required_ultimate", "required_evolution", "required_support", "workshop_normalized", "long_description", "theme_tags", "enemy_roster", "threat_summary", "recommended_upgrade_tags", "wave_budget_scale", "enemy_health_scale", "enemy_speed_scale"}},
         {"weapons.json", {"rapid_fire", "explosive_cannon", "arcane_beam", "frost_blaster", "sniper_railgun"}},
-        {"upgrades.json", {"piercing_shots", "ricochet", "overclock", "cluster_bombs", "freezing_blast", "black_hole", "wind_shear", "poison_coil", "teleport_trap", "value_a", "value_b"}},
+        {"upgrades.json", {"piercing_shots", "ricochet", "overclock", "cluster_bombs", "freezing_blast", "black_hole", "wind_shear", "poison_coil", "teleport_trap", "value_a", "value_b", "prerequisites", "exclusions", "max_stacks"}},
         {"skulls.json", {"swarm", "glass_cannon", "haste", "greed", "spawn_scale", "speed_scale", "currency_bonus", "boss_currency_bonus"}},
         {"waves.json", {"\"wave\":1", "\"wave\":10", "\"boss\":true", "grunt_weight", "runner_weight", "tank_weight", "shielded_weight", "swarmling_weight", "teleporter_weight", "boss_weight"}},
         {"enemies.json", {"grunt", "runner", "tank", "shielded", "swarmling", "teleporter", "boss", "damage_resistance", "radius", "teleport_cooldown", "\"phases\":2", "attack_cooldown_seconds", "telegraph_ms", "attack_lives"}},
         {"ultimates.json", {"meteor_rain", "bullet_storm", "absolute_zero", "gravity_shift", "energy_surge", "cooldown_seconds", "damage_scale"}},
+        {"ultimate_evolutions.json", {"solar_aftermath", "extinction_spear", "shattered_sky", "resonant_arsenal", "suppressive_grid", "execution_protocol", "brittle_singularity", "permafrost_engine", "cold_conductor", "event_horizon", "chrono_reversal", "mass_driver", "overdrive_link", "chain_reactor", "terminal_discharge", "cost_legend_cores"}},
+        {"ultimate_modules.json", {"meteor_quick_charge", "meteor_overload", "bullet_suppressor", "bullet_focus", "zero_field", "zero_shatter", "gravity_well", "gravity_reversal", "surge_overdrive", "surge_discharge", "parent_ultimate", "cost_core_parts", "cooldown_scale", "damage_scale"}},
+        {"synergies.json", {"fire_wind", "ice_electric", "poison_teleport", "pierce_ricochet", "ultimate_evolutions", "short_description", "long_description", "strengths", "weaknesses", "synergy_tags", "icon_id"}},
+        {"skills.json", {"gravity_well", "phase_mine", "vanguard_drop", "forward_barracks", "ruin_hex", "rally_beacon", "sentry_fabricator", "cryo_field", "drone_swarm", "resonance_pulse", "operations", "cooldown_ticks", "target_mode", "icon_id"}},
+        {"skill_trees.json", {"gravity_well_radius", "phase_mine_charges", "vanguard_health", "barracks_health", "ruin_radius", "rally_heal", "sentry_range", "cryo_radius", "drone_count", "parent_id", "branch_id", "icon_layer"}},
+        {"statuses.json", {"slow", "weakness", "stun", "burn", "shield", "short_description", "long_description", "strengths", "weaknesses", "synergy_tags", "icon_id"}},
+        {"allies.json", {"max_allied_units", "soldier", "striker", "bulwark", "drone", "disruptor", "short_description", "long_description", "strengths", "weaknesses", "synergy_tags", "icon_id"}},
+        {"buildings.json", {"max_buildings", "max_skill_zones", "barracks", "armory", "sentry", "mortar", "short_description", "long_description", "strengths", "weaknesses", "synergy_tags", "icon_id"}},
         {"skins.json", {"azure", "ember", "nebula", "verdant", "gold", "\"cosmetic_only\":true"}},
         {"arenas.json", {"moonbase", "ember_crater", "neon_ruins", "wide_sine", "deep_sine", "tight_sine"}}
     };
     bool ok = true;
     for (const Requirement& requirement : requirements) ok = validate(root / requirement.file, requirement.tokens) && ok;
     const std::pair<const char*, std::vector<const char*>> ids[] = {
+        {"run_types.json", {"standard", "endless", "daily"}},
+        {"tower_chassis.json", {"vanguard", "bastion", "catalyst"}},
+        {"support_modules.json", {"none", "credit_relay", "stasis_field", "repair_drones", "corrosion_amp"}},
+        {"currencies.json", {"credits", "core_parts", "shards", "legend_cores"}},
+        {"workshop.json", {"tower_core", "module_rapid_fire", "module_explosive_cannon", "module_arcane_beam", "module_frost_blaster", "module_sniper_railgun", "support_credit_relay", "support_stasis_field", "support_repair_drones", "support_corrosion_amp"}},
+        {"daily_challenges.json", {"frozen_circuit", "last_shell", "swarm_protocol", "toxic_transit", "blackout", "no_safe_distance", "burning_economy"}},
         {"weapons.json", {"rapid_fire", "explosive_cannon", "arcane_beam", "frost_blaster", "sniper_railgun"}},
         {"upgrades.json", {"piercing_shots", "ricochet", "overclock", "cluster_bombs", "shockwave", "fireball_shells", "chain_lightning", "freezing_blast", "burning_shot", "black_hole", "emergency_repair", "scavenger", "wind_shear", "poison_coil", "teleport_trap"}},
         {"ultimates.json", {"meteor_rain", "bullet_storm", "absolute_zero", "gravity_shift", "energy_surge"}},
+        {"ultimate_evolutions.json", {"solar_aftermath", "extinction_spear", "shattered_sky", "resonant_arsenal", "suppressive_grid", "execution_protocol", "brittle_singularity", "permafrost_engine", "cold_conductor", "event_horizon", "chrono_reversal", "mass_driver", "overdrive_link", "chain_reactor", "terminal_discharge"}},
+        {"ultimate_modules.json", {"meteor_quick_charge", "meteor_overload", "bullet_suppressor", "bullet_focus", "zero_field", "zero_shatter", "gravity_well", "gravity_reversal", "surge_overdrive", "surge_discharge"}},
+        {"skills.json", {"gravity_well", "phase_mine", "vanguard_drop", "forward_barracks", "ruin_hex", "rally_beacon", "sentry_fabricator", "cryo_field", "drone_swarm", "resonance_pulse"}},
+        {"statuses.json", {"slow", "weakness", "stun", "burn", "shield"}},
+        {"allies.json", {"soldier", "striker", "bulwark", "drone", "disruptor"}},
+        {"buildings.json", {"barracks", "armory", "sentry", "mortar"}},
         {"skins.json", {"azure", "ember", "nebula", "verdant", "gold"}},
         {"arenas.json", {"moonbase", "ember_crater", "neon_ruins"}},
         {"enemies.json", {"grunt", "runner", "tank", "shielded", "swarmling", "teleporter", "boss"}}
     };
     for (const auto& requirement : ids) ok = validateIds(root / requirement.first, requirement.second) && ok;
     ok = validateUpgradeEffects(root / "upgrades.json") && ok;
-    ok = validate(root.parent_path() / "manifest.json", {"content.weapons", "content.upgrades", "content.skulls", "content.waves", "content.enemies", "content.ultimates", "content.skins", "content.arenas", "\"license\":\"project\""}) && ok;
+    ok = validateUpgradeConstraints(root / "upgrades.json") && ok;
+    ok = validateMetadata(root / "weapons.json", 5) && ok;
+    ok = validateMetadata(root / "tower_chassis.json", 3) && ok;
+    ok = validateMetadata(root / "upgrades.json", 15) && ok;
+    ok = validateMetadata(root / "ultimates.json", 5) && ok;
+    ok = validateMetadata(root / "skulls.json", 4) && ok;
+    ok = validateMetadata(root / "arenas.json", 3) && ok;
+    ok = validateMetadata(root / "enemies.json", 7) && ok;
+    ok = validateMetadata(root / "support_modules.json", 5) && ok;
+    ok = validateMetadata(root / "currencies.json", 4) && ok;
+    ok = validateMetadata(root / "workshop.json", 10) && ok;
+    ok = validateMetadata(root / "ultimate_evolutions.json", 15) && ok;
+    ok = validateMetadata(root / "ultimate_modules.json", 10) && ok;
+    ok = validateMetadata(root / "synergies.json", 5) && ok;
+    ok = validateMetadata(root / "statuses.json", 5) && ok;
+    ok = validateMetadata(root / "allies.json", 5) && ok;
+    ok = validateMetadata(root / "buildings.json", 4) && ok;
+    ok = validateMetadata(root / "statuses.json", 5) && ok;
+    ok = validateMetadata(root / "allies.json", 5) && ok;
+    ok = validateMetadata(root / "buildings.json", 4) && ok;
+    ok = validateSkillContent(root / "skills.json", root / "skill_trees.json") && ok;
+    ok = validateDailyRecipeMetadata(root / "daily_challenges.json", 7) && ok;
+    ok = validateDailyRecipeReferences(root / "daily_challenges.json") && ok;
+    ok = validate(root.parent_path() / "manifest.json", {"content.run_types", "content.tower_chassis", "content.support_modules", "content.currencies", "content.workshop", "content.daily_challenges", "content.synergies", "content.skills", "content.skill_trees", "content.statuses", "content.allies", "content.buildings", "content.weapons", "content.upgrades", "content.skulls", "content.waves", "content.enemies", "content.ultimates", "content.ultimate_evolutions", "content.ultimate_modules", "content.skins", "content.arenas", "\"license\":\"project\""}) && ok;
     ok = validateManifest(root) && ok;
     ta::ContentConfig loaded;
     std::string contentError;

@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "arenas": [
-    {"id":"moonbase","display":"Moonbase","health_scale":1.0,"speed_scale":0.94,"path":"wide_sine","path_amplitude":120,"path_frequency":0.012},
-    {"id":"ember_crater","display":"Ember Crater","health_scale":1.15,"speed_scale":1.0,"path":"deep_sine","path_amplitude":155,"path_frequency":0.009},
-    {"id":"neon_ruins","display":"Neon Ruins","health_scale":1.0,"speed_scale":1.12,"path":"tight_sine","path_amplitude":82,"path_frequency":0.018}
+    {"id":"moonbase","display":"Moonbase","short_description":"A wide, forgiving route.","long_description":"Lower enemy speed gives new builds more reaction time.","strengths":["new_builds"],"weaknesses":["long_range"],"synergy_tags":["control","sustain"],"icon_id":"arena.moonbase","health_scale":1.0,"speed_scale":0.94,"path":"wide_sine","path_amplitude":120,"path_frequency":0.012},
+    {"id":"ember_crater","display":"Ember Crater","short_description":"A high-health endurance route.","long_description":"Enemies survive longer, rewarding damage over time and efficient targeting.","strengths":["status","sustain"],"weaknesses":["low_damage"],"synergy_tags":["fire","poison","burst"],"icon_id":"arena.ember_crater","health_scale":1.15,"speed_scale":1.0,"path":"deep_sine","path_amplitude":155,"path_frequency":0.009},
+    {"id":"neon_ruins","display":"Neon Ruins","short_description":"A fast, tight route.","long_description":"Higher enemy speed rewards control, reaction time, and rapid fire.","strengths":["control","rate"],"weaknesses":["slow_cooldowns"],"synergy_tags":["ice","stun","kinetic"],"icon_id":"arena.neon_ruins","health_scale":1.0,"speed_scale":1.12,"path":"tight_sine","path_amplitude":82,"path_frequency":0.018}
   ]
 }

@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "currencies": [
+    {"id":"credits", "display":"Credits", "short_description":"Run-only currency earned from combat.", "long_description":"Credits are earned during a run through kills and support effects. They are intentionally temporary and are spent only by future in-run shop systems.", "strengths":["tempo","run_decisions"], "weaknesses":["resets_after_run"], "synergy_tags":["economy","run_only"], "icon_id":"currency.credits"},
+    {"id":"core_parts", "display":"Core Parts", "short_description":"Persistent currency for tower and module upgrades.", "long_description":"Core Parts come from completed runs and milestones, then fund modest permanent progression in the Workshop without replacing build choices.", "strengths":["workshop","consistency"], "weaknesses":["slow_power_growth"], "synergy_tags":["progression","workshop"], "icon_id":"currency.core_parts"},
+    {"id":"shards", "display":"Shards", "short_description":"Cosmetic currency for skins and presentation unlocks.", "long_description":"Shards are earned from runs and Daily Challenges. They unlock cosmetic options and never increase combat power.", "strengths":["cosmetics","daily_replay"], "weaknesses":["no_combat_effect"], "synergy_tags":["cosmetic","collection"], "icon_id":"currency.shards"},
+    {"id":"legend_cores", "display":"Legend Cores", "short_description":"Rare currency for transformative ultimate evolutions.", "long_description":"Legend Cores are earned from first-clear Dailies and major milestones. They buy mutually exclusive Legendary Evolutions that specialize an ultimate instead of adding a linear damage tier.", "strengths":["specialization","late_progression"], "weaknesses":["rare","tradeoffs"], "synergy_tags":["legendary","evolution"], "icon_id":"currency.legend_cores"}
+  ]
+}

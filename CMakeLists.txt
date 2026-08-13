@@ -56,6 +56,10 @@ target_link_libraries(ta_sim_tests PRIVATE ta_core)
 ta_enable_warnings(ta_sim_tests)
 target_compile_definitions(ta_sim_tests PRIVATE TA_CONTENT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets/content")
 
+add_executable(ta_ui_layout_tests tests/test_ui_layout.cpp)
+target_include_directories(ta_ui_layout_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+ta_enable_warnings(ta_ui_layout_tests)
+
 add_executable(ta_content_check tools/content_check.cpp)
 target_link_libraries(ta_content_check PRIVATE ta_core)
 ta_enable_warnings(ta_content_check)
@@ -76,6 +80,7 @@ add_executable(ta_sim_runner ALIAS ta_balance_check)
 
 enable_testing()
 add_test(NAME ta_sim_tests COMMAND ta_sim_tests)
+add_test(NAME ta_ui_layout_tests COMMAND ta_ui_layout_tests)
 add_test(NAME ta_content_check COMMAND ta_content_check ${CMAKE_CURRENT_SOURCE_DIR}/assets/content)
 add_test(NAME ta_content_failure_smoke COMMAND ta_content_check ${CMAKE_CURRENT_BINARY_DIR}/tower_ascend_missing_content_pack)
 set_tests_properties(ta_content_failure_smoke PROPERTIES WILL_FAIL TRUE)
