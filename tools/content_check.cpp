@@ -92,7 +92,7 @@ bool validateUpgradeEffects(const std::filesystem::path& path) {
     if (!input) return false;
     std::ostringstream buffer; buffer << input.rdbuf();
     const std::string text = buffer.str();
-    const std::set<std::string> allowed{"pierce", "bounce", "fire_rate", "splash", "stun", "burn_area", "chain", "slow", "burn", "pull", "heal", "damage_currency", "tornado_reaction", "poison", "displace"};
+    const std::set<std::string> allowed{"pierce", "bounce", "fire_rate", "splash", "stun", "burn_area", "chain", "slow", "burn", "pull", "heal", "damage_currency", "damage", "tornado_reaction", "poison", "displace"};
     const std::regex effectPattern("\\\"effect\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
     bool ok = true;
     int count = 0;
@@ -354,7 +354,7 @@ int main(int argc, char** argv) {
         {"workshop.json", {"tower_core", "module_rapid_fire", "module_explosive_cannon", "module_arcane_beam", "module_frost_blaster", "module_sniper_railgun", "support_credit_relay", "support_stasis_field", "support_repair_drones", "support_corrosion_amp", "short_description", "long_description", "synergy_tags", "icon_id", "base_cost", "cost_step", "max_level"}},
         {"daily_challenges.json", {"frozen_circuit", "last_shell", "swarm_protocol", "toxic_transit", "blackout", "no_safe_distance", "burning_economy", "theme_index", "required_chassis", "required_ultimate", "required_evolution", "required_support", "workshop_normalized", "long_description", "theme_tags", "enemy_roster", "threat_summary", "recommended_upgrade_tags", "wave_budget_scale", "enemy_health_scale", "enemy_speed_scale"}},
         {"weapons.json", {"rapid_fire", "explosive_cannon", "arcane_beam", "frost_blaster", "sniper_railgun"}},
-        {"upgrades.json", {"piercing_shots", "ricochet", "overclock", "cluster_bombs", "freezing_blast", "black_hole", "wind_shear", "poison_coil", "teleport_trap", "value_a", "value_b", "prerequisites", "exclusions", "max_stacks"}},
+        {"upgrades.json", {"piercing_shots", "ricochet", "overclock", "cluster_bombs", "freezing_blast", "black_hole", "wind_shear", "poison_coil", "steady_aim", "value_a", "value_b", "prerequisites", "exclusions", "max_stacks"}},
         {"skulls.json", {"swarm", "glass_cannon", "haste", "greed", "spawn_scale", "speed_scale", "currency_bonus", "boss_currency_bonus"}},
         {"waves.json", {"\"wave\":1", "\"wave\":10", "\"boss\":true", "grunt_weight", "runner_weight", "tank_weight", "shielded_weight", "swarmling_weight", "teleporter_weight", "boss_weight"}},
         {"enemies.json", {"grunt", "runner", "tank", "shielded", "swarmling", "teleporter", "boss", "damage_resistance", "radius", "teleport_cooldown", "\"phases\":2", "attack_cooldown_seconds", "telegraph_ms", "attack_lives"}},
@@ -380,7 +380,7 @@ int main(int argc, char** argv) {
         {"workshop.json", {"tower_core", "module_rapid_fire", "module_explosive_cannon", "module_arcane_beam", "module_frost_blaster", "module_sniper_railgun", "support_credit_relay", "support_stasis_field", "support_repair_drones", "support_corrosion_amp"}},
         {"daily_challenges.json", {"frozen_circuit", "last_shell", "swarm_protocol", "toxic_transit", "blackout", "no_safe_distance", "burning_economy"}},
         {"weapons.json", {"rapid_fire", "explosive_cannon", "arcane_beam", "frost_blaster", "sniper_railgun"}},
-        {"upgrades.json", {"piercing_shots", "ricochet", "overclock", "cluster_bombs", "shockwave", "fireball_shells", "chain_lightning", "freezing_blast", "burning_shot", "black_hole", "emergency_repair", "scavenger", "wind_shear", "poison_coil", "teleport_trap"}},
+        {"upgrades.json", {"piercing_shots", "ricochet", "overclock", "cluster_bombs", "shockwave", "fireball_shells", "chain_lightning", "freezing_blast", "burning_shot", "black_hole", "emergency_repair", "scavenger", "wind_shear", "poison_coil", "steady_aim"}},
         {"ultimates.json", {"meteor_rain", "bullet_storm", "absolute_zero", "gravity_shift", "energy_surge"}},
         {"ultimate_evolutions.json", {"solar_aftermath", "extinction_spear", "shattered_sky", "resonant_arsenal", "suppressive_grid", "execution_protocol", "brittle_singularity", "permafrost_engine", "cold_conductor", "event_horizon", "chrono_reversal", "mass_driver", "overdrive_link", "chain_reactor", "terminal_discharge"}},
         {"ultimate_modules.json", {"meteor_quick_charge", "meteor_overload", "bullet_suppressor", "bullet_focus", "zero_field", "zero_shatter", "gravity_well", "gravity_reversal", "surge_overdrive", "surge_discharge"}},

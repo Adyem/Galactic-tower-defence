@@ -52,7 +52,6 @@ int choiceScore(const ta::GameSim& sim, ta::Upgrade upgrade, Policy policy, int 
     if (owns(sim, ta::Upgrade::BurningShot) && upgrade == ta::Upgrade::WindShear) score += 70;
     if (owns(sim, ta::Upgrade::WindShear) && upgrade == ta::Upgrade::FireballShells) score += 70;
     if (owns(sim, ta::Upgrade::FreezingBlast) && upgrade == ta::Upgrade::ChainLightning) score += 75;
-    if (owns(sim, ta::Upgrade::PoisonCoil) && upgrade == ta::Upgrade::TeleportTrap) score += 75;
     if (owns(sim, ta::Upgrade::PiercingShots) && upgrade == ta::Upgrade::Ricochet) score += 35;
     if (policy == Policy::ThreatAware || policy == Policy::Oracle) {
         const auto& threat = sim.contentConfig().waveEnemyTypeWeight[static_cast<std::size_t>(std::clamp(sim.waveNumber() - 1, 0, 9))];
@@ -60,14 +59,13 @@ int choiceScore(const ta::GameSim& sim, ta::Upgrade upgrade, Policy policy, int 
         const float fast = threat[static_cast<std::size_t>(ta::EnemyType::Runner)] + threat[static_cast<std::size_t>(ta::EnemyType::Teleporter)];
         const float armor = threat[static_cast<std::size_t>(ta::EnemyType::Tank)] + threat[static_cast<std::size_t>(ta::EnemyType::Shielded)];
         if ((upgrade == ta::Upgrade::ClusterBombs || upgrade == ta::Upgrade::ChainLightning || upgrade == ta::Upgrade::BlackHole) && swarm >= 10.0f) score += 65;
-        if ((upgrade == ta::Upgrade::FreezingBlast || upgrade == ta::Upgrade::Shockwave || upgrade == ta::Upgrade::TeleportTrap) && fast >= 20.0f) score += 65;
+        if ((upgrade == ta::Upgrade::FreezingBlast || upgrade == ta::Upgrade::Shockwave) && fast >= 20.0f) score += 65;
         if ((upgrade == ta::Upgrade::PiercingShots || upgrade == ta::Upgrade::BurningShot || upgrade == ta::Upgrade::PoisonCoil) && armor >= 20.0f) score += 65;
     }
     if (policy == Policy::Oracle) {
         score += isCoreFor(upgrade, sim.weapon()) ? 90 : 0;
         score += owns(sim, ta::Upgrade::ClusterBombs) && upgrade == ta::Upgrade::Shockwave ? 90 : 0;
         score += owns(sim, ta::Upgrade::FireballShells) && upgrade == ta::Upgrade::WindShear ? 90 : 0;
-        score += owns(sim, ta::Upgrade::PoisonCoil) && upgrade == ta::Upgrade::TeleportTrap ? 90 : 0;
         score += owns(sim, ta::Upgrade::FreezingBlast) && upgrade == ta::Upgrade::ChainLightning ? 90 : 0;
     }
     return score * 10 - index;

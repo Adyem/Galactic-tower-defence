@@ -13,7 +13,7 @@ enum class TowerChassis { Vanguard, Bastion, Catalyst };
 enum class SupportModule { None, CreditRelay, StasisField, RepairDrones, CorrosionAmp };
 enum class Upgrade { PiercingShots, Ricochet, Overclock, ClusterBombs, Shockwave, FireballShells,
                      ChainLightning, FreezingBlast, BurningShot, BlackHole, EmergencyRepair, Scavenger,
-                     WindShear, PoisonCoil, TeleportTrap };
+                     WindShear, PoisonCoil, SteadyAim };
 enum class Skull { None, Swarm, GlassCannon, Haste, Greed };
 using SkullMask = std::uint8_t;
 enum class EnemyType { Grunt, Runner, Tank, Shielded, Swarmling, Teleporter, Boss };
@@ -170,6 +170,7 @@ struct SkillZone {
     SkillId ownerSkill = SkillId::GravityWell;
     bool triggered = false;
     bool alive = true;
+    bool pullsToEdge = false;
 };
 
 struct Enemy {
@@ -332,11 +333,11 @@ struct ContentConfig {
     std::array<float, 5> skullSpeedScale{{1.0f, 1.0f, 1.0f, 1.25f, 1.0f}};
     std::array<int, 5> skullCurrencyBonus{{0, 0, 0, 0, 3}};
     std::array<int, 5> skullBossCurrencyBonus{{0, 0, 0, 0, 50}};
-    std::array<float, 15> upgradeWeight{{1.0f, 1.0f, 0.9f, 1.0f, 0.9f, 0.85f, 0.8f, 1.0f, 0.9f, 0.75f, 0.8f, 1.0f, 0.8f, 0.8f, 0.75f}};
+    std::array<float, 15> upgradeWeight{{1.0f, 1.0f, 0.9f, 1.0f, 0.9f, 0.85f, 0.8f, 1.0f, 0.9f, 0.75f, 0.8f, 1.0f, 0.8f, 0.8f, 0.8f}};
     // Generic authored magnitudes per upgrade. Their meaning is documented in
     // upgrades.json and interpreted by the tested combat primitives.
-    std::array<float, 15> upgradeValueA{{2.0f, 1.0f, 2.0f, 92.0f, 1.25f, 4.0f, 0.42f, 2.0f, 3.0f, 85.0f, 4.0f, 0.12f, 125.0f, 5.0f, 90.0f}};
-    std::array<float, 15> upgradeValueB{{0.0f, 0.0f, 0.0f, 0.45f, 115.0f, 13.0f, 0.70f, 0.45f, 11.0f, 12.0f, 0.0f, 20.0f, 0.25f, 7.0f, 18.0f}};
+    std::array<float, 15> upgradeValueA{{2.0f, 1.0f, 2.0f, 92.0f, 1.25f, 4.0f, 0.42f, 2.0f, 3.0f, 85.0f, 4.0f, 0.12f, 125.0f, 5.0f, 0.06f}};
+    std::array<float, 15> upgradeValueB{{0.0f, 0.0f, 0.0f, 0.45f, 115.0f, 13.0f, 0.70f, 0.45f, 11.0f, 12.0f, 0.0f, 20.0f, 0.25f, 7.0f, 0.0f}};
     std::array<float, 3> arenaHealthScale{{1.0f, 1.15f, 1.0f}};
     std::array<float, 3> arenaSpeedScale{{0.94f, 1.0f, 1.12f}};
     std::array<float, 3> arenaPathAmplitude{{120.0f, 155.0f, 82.0f}};

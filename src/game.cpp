@@ -36,7 +36,7 @@ float ultimateModuleScale(const ContentConfig& content, UltimateModule module, U
 constexpr const char* UpgradeIds[] = {
     "piercing_shots", "ricochet", "overclock", "cluster_bombs", "shockwave", "fireball_shells",
     "chain_lightning", "freezing_blast", "burning_shot", "black_hole", "emergency_repair", "scavenger",
-    "wind_shear", "poison_coil", "teleport_trap"
+    "wind_shear", "poison_coil", "steady_aim"
 };
 
 bool upgradeIdMatches(Upgrade upgrade, const std::string& id) {
@@ -481,7 +481,7 @@ bool GameSim::castSkill(const SkillCastRequest& request, std::string* error) {
     }
     switch (request.skill) {
         case SkillId::GravityWell:
-            if (zones.size() < content.maxSkillZones) zones.push_back({nextZoneId++, target, radius, definition.durationTicks, 0, valueA, valueB, request.skill, false, true});
+            if (zones.size() < content.maxSkillZones) zones.push_back({nextZoneId++, target, radius, definition.durationTicks, 0, valueA, valueB, request.skill, false, true, branch == "edge_horizon"});
             break;
         case SkillId::PhaseMine:
             if (zones.size() < content.maxSkillZones) zones.push_back({nextZoneId++, target, radius, definition.durationTicks, TickRate / 2, valueA, valueB, request.skill, false, true});
@@ -717,7 +717,10 @@ void GameSim::updateSkillZones() {
             if (!enemy.alive || distanceSquared(enemy.pos, zone.center) > radiusSq) continue;
             if (zone.ownerSkill == SkillId::GravityWell) {
                 const float pull = std::max(0.0f, zone.valueA) / static_cast<float>(TickRate);
-                enemy.pos.x = std::max(92.0f, enemy.pos.x - pull);
+                const float edge = enemy.pos.x < zone.center.x ? 92.0f : static_cast<float>(Width - 40);
+                const float destination = zone.pullsToEdge ? edge : zone.center.x;
+                const float distanceToDestination = destination - enemy.pos.x;
+                enemy.pos.x += std::copysign(std::min(std::abs(distanceToDestination), pull), distanceToDestination);
                 enemy.slow = std::max(enemy.slow, 0.35f);
                 if (zone.valueB > 0.0f) applySkillDamage(enemy, zone.valueB / static_cast<float>(TickRate), zone.ownerSkill);
                 ++counters.skillTargets[static_cast<std::size_t>(zone.ownerSkill)];
@@ -882,10 +885,6 @@ void GameSim::updateProjectiles() {
                 ++counters.statusApplications;
             }
             if (hasUpgrade(Upgrade::FreezingBlast)) { enemy.slow = upgradeValueA(Upgrade::FreezingBlast); ++counters.statusApplications; }
-            if (hasUpgrade(Upgrade::TeleportTrap)) {
-                enemy.pos.x = std::max(92.0f, enemy.pos.x - upgradeValueA(Upgrade::TeleportTrap));
-                if (hasUpgrade(Upgrade::PoisonCoil)) { applyDamage(enemy, upgradeValueB(Upgrade::TeleportTrap) + wave * 2.0f); ++counters.reactionTriggers; }
-            }
             if (hasUpgrade(Upgrade::ChainLightning)) {
                 const bool frozenChain = hasUpgrade(Upgrade::FreezingBlast) && enemy.slow > 0.0f;
                 if (frozenChain) ++counters.reactionTriggers;
@@ -926,7 +925,7 @@ void GameSim::fireWeapon() {
     const float length = std::sqrt(dx * dx + dy * dy);
     const float workshopScale = 1.0f + static_cast<float>(workshopModuleLevels[static_cast<std::size_t>(selectedWeapon)]) * 0.01f;
     const float evolutionScale = ultimateBoostTicks > 0 ? 1.25f : 1.0f;
-    const float damageScale = workshopScale * evolutionScale * content.chassisWeaponDamageScale[static_cast<std::size_t>(selectedChassis)] * (1.0f + (hasUpgrade(Upgrade::Scavenger) ? upgradeValueA(Upgrade::Scavenger) : 0.0f));
+    const float damageScale = workshopScale * evolutionScale * content.chassisWeaponDamageScale[static_cast<std::size_t>(selectedChassis)] * (1.0f + (hasUpgrade(Upgrade::Scavenger) ? upgradeValueA(Upgrade::Scavenger) : 0.0f)) * (1.0f + (hasUpgrade(Upgrade::SteadyAim) ? upgradeValueA(Upgrade::SteadyAim) : 0.0f));
     const float cooldownScale = content.chassisWeaponCooldownScale[static_cast<std::size_t>(selectedChassis)];
     switch (selectedWeapon) {
         case Weapon::RapidFire:
@@ -972,7 +971,7 @@ void GameSim::createUpgradeChoices() {
     const Upgrade pool[] = {Upgrade::PiercingShots, Upgrade::Ricochet, Upgrade::Overclock, Upgrade::ClusterBombs,
                             Upgrade::Shockwave, Upgrade::FireballShells, Upgrade::ChainLightning, Upgrade::FreezingBlast,
                             Upgrade::BurningShot, Upgrade::BlackHole, Upgrade::EmergencyRepair, Upgrade::Scavenger,
-                            Upgrade::WindShear, Upgrade::PoisonCoil, Upgrade::TeleportTrap};
+                            Upgrade::WindShear, Upgrade::PoisonCoil, Upgrade::SteadyAim};
     const auto eligible = [this, &pool](Upgrade candidate) {
         const std::size_t index = static_cast<std::size_t>(candidate);
         if (index >= content.upgradeMetadata.size()) return false;
@@ -1003,7 +1002,7 @@ void GameSim::createUpgradeChoices() {
         const float swarms = threats[static_cast<std::size_t>(EnemyType::Swarmling)];
         const float teleporters = threats[static_cast<std::size_t>(EnemyType::Teleporter)];
         if ((upgrade == Upgrade::ClusterBombs || upgrade == Upgrade::ChainLightning || upgrade == Upgrade::BlackHole) && swarms >= 10.0f) return 1.45f;
-        if ((upgrade == Upgrade::FreezingBlast || upgrade == Upgrade::Shockwave || upgrade == Upgrade::TeleportTrap) && runners + teleporters >= 20.0f) return 1.40f;
+        if ((upgrade == Upgrade::FreezingBlast || upgrade == Upgrade::Shockwave) && runners + teleporters >= 20.0f) return 1.40f;
         if ((upgrade == Upgrade::PiercingShots || upgrade == Upgrade::Ricochet || upgrade == Upgrade::BurningShot || upgrade == Upgrade::PoisonCoil) && tanks + shielded >= 20.0f) return 1.35f;
         return 1.0f;
     };
@@ -1031,7 +1030,7 @@ void GameSim::createUpgradeChoices() {
                 case Upgrade::EmergencyRepair:
                 case Upgrade::Scavenger:
                 case Upgrade::PoisonCoil:
-                case Upgrade::TeleportTrap:
+                case Upgrade::SteadyAim:
                     return 1.0f;
             }
             return 1.0f;
@@ -1231,7 +1230,7 @@ std::uint32_t GameSim::stateHash() const {
     addSize(buildings.size());
     for (const DeployableBuilding& building : buildings) { add(static_cast<std::uint32_t>(building.id)); addFloat(building.pos.x); addFloat(building.pos.y); addFloat(building.hp); addFloat(building.maxHp); add(static_cast<std::uint32_t>(building.lifetimeTicks)); add(static_cast<std::uint32_t>(building.spawnCooldownTicks)); add(static_cast<std::uint32_t>(building.attackCooldownTicks)); add(static_cast<std::uint32_t>(building.ownerSkill)); for (const unsigned char c : building.role) add(c); add(0u); }
     addSize(zones.size());
-    for (const SkillZone& zone : zones) { add(static_cast<std::uint32_t>(zone.id)); addFloat(zone.center.x); addFloat(zone.center.y); addFloat(zone.radius); add(static_cast<std::uint32_t>(zone.remainingTicks)); add(static_cast<std::uint32_t>(zone.armTicks)); addFloat(zone.valueA); addFloat(zone.valueB); add(static_cast<std::uint32_t>(zone.ownerSkill)); addBool(zone.triggered); }
+    for (const SkillZone& zone : zones) { add(static_cast<std::uint32_t>(zone.id)); addFloat(zone.center.x); addFloat(zone.center.y); addFloat(zone.radius); add(static_cast<std::uint32_t>(zone.remainingTicks)); add(static_cast<std::uint32_t>(zone.armTicks)); addFloat(zone.valueA); addFloat(zone.valueB); add(static_cast<std::uint32_t>(zone.ownerSkill)); addBool(zone.triggered); addBool(zone.pullsToEdge); }
     addSize(ownedUpgrades.size());
     for (Upgrade upgrade : ownedUpgrades) add(static_cast<std::uint32_t>(upgrade));
     addSize(choices.size());
@@ -1371,7 +1370,7 @@ const char* upgradeName(Upgrade upgrade) {
         case Upgrade::Scavenger: return "SCAVENGER";
         case Upgrade::WindShear: return "WIND SHEAR";
         case Upgrade::PoisonCoil: return "POISON COIL";
-        case Upgrade::TeleportTrap: return "TELEPORT TRAP";
+        case Upgrade::SteadyAim: return "STEADY AIM";
     }
     return "UNKNOWN";
 }
@@ -1392,7 +1391,7 @@ const char* upgradeDescription(Upgrade upgrade) {
         case Upgrade::Scavenger: return "DAMAGE AND CREDITS";
         case Upgrade::WindShear: return "AMPLIFIES FIRE AREA";
         case Upgrade::PoisonCoil: return "POISON AND DISPLACE";
-        case Upgrade::TeleportTrap: return "PUSH FOES BACK";
+        case Upgrade::SteadyAim: return "SIX PERCENT MORE DAMAGE";
     }
     return "UNKNOWN EFFECT";
 }

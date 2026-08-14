@@ -522,7 +522,7 @@ bool loadContentConfig(const std::string& directory, ContentConfig& output, std:
     parsed.bossTelegraphTicks = std::max(1, (bossTelegraphMilliseconds[0] * 30 + 999) / 1000);
     parsed.bossAttackLives = bossAttackLives[0];
     const std::array<const char*, 5> weaponIds{{"rapid_fire", "explosive_cannon", "arcane_beam", "frost_blaster", "sniper_railgun"}};
-    const std::array<const char*, 15> upgradeIds{{"piercing_shots", "ricochet", "overclock", "cluster_bombs", "shockwave", "fireball_shells", "chain_lightning", "freezing_blast", "burning_shot", "black_hole", "emergency_repair", "scavenger", "wind_shear", "poison_coil", "teleport_trap"}};
+    const std::array<const char*, 15> upgradeIds{{"piercing_shots", "ricochet", "overclock", "cluster_bombs", "shockwave", "fireball_shells", "chain_lightning", "freezing_blast", "burning_shot", "black_hole", "emergency_repair", "scavenger", "wind_shear", "poison_coil", "steady_aim"}};
     const std::array<const char*, 5> ultimateIds{{"meteor_rain", "bullet_storm", "absolute_zero", "gravity_shift", "energy_surge"}};
     const std::array<const char*, 5> supportIdsForMetadata{{"none", "credit_relay", "stasis_field", "repair_drones", "corrosion_amp"}};
     const std::array<const char*, 4> authoredSkullIds{{"swarm", "glass_cannon", "haste", "greed"}};

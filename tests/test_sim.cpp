@@ -342,6 +342,14 @@ int main() {
     check(!authored.skillDefinitions[static_cast<std::size_t>(ta::SkillId::ResonancePulse)].operations.empty(), "data-only fixture skill has no authored operations");
     check(fixtureRun.activateSkill(0, ta::TargetSpec{ta::SkillTargetMode::Area, {700.0f, 360.0f}, -1}, &error), "data-only authored skill could not be cast");
     check(fixtureRun.stats().skillTargets[static_cast<std::size_t>(ta::SkillId::ResonancePulse)] > 0 || !fixtureRun.skillZones().empty(), "data-only authored skill did not execute reusable effects");
+    check(fixtureRun.activateSkill(1, ta::TargetSpec{ta::SkillTargetMode::Area, {700.0f, 360.0f}, -1}, &error) && !fixtureRun.skillZones().empty() && !fixtureRun.skillZones().back().pullsToEdge,
+          "base gravity well did not retain center-pull behavior");
+    ta::SkillLoadout edgeGravityLoadout = fixtureLoadout;
+    edgeGravityLoadout.nodeBuilds[1] = "gravity_edge_horizon:1";
+    fixtureRun.setSkillLoadout(edgeGravityLoadout);
+    fixtureRun.reset(50061u);
+    check(fixtureRun.activateSkill(1, ta::TargetSpec{ta::SkillTargetMode::Area, {700.0f, 360.0f}, -1}, &error) && !fixtureRun.skillZones().empty() && fixtureRun.skillZones().back().pullsToEdge,
+          "edge horizon talent did not switch gravity well to edge-pull behavior");
     ta::GameSim summonRun(50060u);
     summonRun.setContentConfig(authored);
     summonRun.reset(50060u);
@@ -493,12 +501,12 @@ int main() {
     authoredWave.setContentConfig(runnerWave);
     authoredWave.tick();
     check(!authoredWave.enemies().empty() && authoredWave.enemies().front().type == ta::EnemyType::Runner, "authored wave composition did not control the spawned archetype");
-    check(authored.upgradeWeight[9] == 0.75f && authored.upgradeWeight[14] == 0.75f, "authored upgrade weights were not parsed");
-    check(authored.upgradeValueA[0] == 2.0f && authored.upgradeValueA[9] == 85.0f && authored.upgradeValueB[14] == 18.0f, "authored upgrade magnitudes were not parsed");
+    check(authored.upgradeWeight[9] == 0.75f && authored.upgradeWeight[14] == 0.8f, "authored upgrade weights were not parsed");
+        check(authored.upgradeValueA[0] == 2.0f && authored.upgradeValueA[9] == 85.0f && authored.upgradeValueA[14] == 0.06f && authored.upgradeValueB[14] == 0.0f, "authored upgrade magnitudes were not parsed");
     check(authored.upgradeMetadata[1].prerequisites == std::vector<std::string>{"piercing_shots"} &&
           authored.upgradeMetadata[4].prerequisites == std::vector<std::string>{"cluster_bombs"} &&
           authored.upgradeMetadata[12].prerequisites == std::vector<std::string>{"fireball_shells"} &&
-          authored.upgradeMetadata[14].prerequisites == std::vector<std::string>{"poison_coil"}, "authored upgrade prerequisites were not parsed");
+          authored.upgradeMetadata[14].prerequisites.empty(), "authored upgrade prerequisites were not parsed");
     check(authored.upgradeMetadata[10].exclusions == std::vector<std::string>{"scavenger"} &&
           authored.upgradeMetadata[11].exclusions == std::vector<std::string>{"emergency_repair"} &&
           authored.upgradeMetadata[0].maxStacks == 1, "authored upgrade exclusions or stack limits were not parsed");

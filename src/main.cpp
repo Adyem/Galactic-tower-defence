@@ -846,15 +846,15 @@ void drawMainMenu(SDL_Renderer* renderer, const ta::ProfileData& profile, const 
     const std::array<UiRect, 5> focusRects{{mainStartButton, mainWorkshopButton, mainCollectionButton, mainSettingsButton, mainQuitButton}};
     if (focus >= 0 && focus < static_cast<int>(focusRects.size())) drawFocusOutline(renderer, focusRects[static_cast<std::size_t>(focus)], neo::Text);
     neoPanel(renderer, 160, 580, 960, 38, neo::Blue, false, 7);
-    drawText(renderer, 184, 592, "SHARDS " + std::to_string(profile.cosmeticShards), 1, neo::Amber);
-    drawText(renderer, 380, 592, "CORE PARTS " + std::to_string(profile.coreParts), 1, neo::Cyan);
-    drawText(renderer, 650, 592, "LEGEND CORES " + std::to_string(profile.legendCores), 1, neo::Violet);
-    drawText(renderer, 920, 592, "TODAY " + daily.title, 1, neo::Text);
+    drawTextFitInBox(renderer, "main.currency.shards", {184, 592, 150, 14}, "SHARDS " + std::to_string(profile.cosmeticShards), 1, neo::Amber);
+    drawTextFitInBox(renderer, "main.currency.coreParts", {380, 592, 210, 14}, "CORE PARTS " + std::to_string(profile.coreParts), 1, neo::Cyan);
+    drawTextFitInBox(renderer, "main.currency.legendCores", {650, 592, 230, 14}, "LEGEND CORES " + std::to_string(profile.legendCores), 1, neo::Violet);
+    drawTextFitInBox(renderer, "main.daily.title", {920, 592, 180, 14}, "TODAY " + daily.title, 1, neo::Text);
     neoPanel(renderer, 160, 620, 960, 38, neo::Void, false, 7);
-    drawText(renderer, 184, 632, "BEST WAVE " + std::to_string(profile.bestWave), 1, neo::Mint);
-    drawText(renderer, 380, 632, "BEST SCORE " + std::to_string(profile.bestScore), 1, neo::Amber);
-    drawText(renderer, 650, 632, "RUNS " + std::to_string(profile.runsCompleted), 1, neo::Cyan);
-    drawText(renderer, 920, 632, "TOWER " + std::string(ta::chassisName(static_cast<ta::TowerChassis>(profile.equippedChassis))), 1, neo::Violet);
+    drawTextFitInBox(renderer, "main.stats.bestWave", {184, 632, 150, 14}, "BEST WAVE " + std::to_string(profile.bestWave), 1, neo::Mint);
+    drawTextFitInBox(renderer, "main.stats.bestScore", {380, 632, 210, 14}, "BEST SCORE " + std::to_string(profile.bestScore), 1, neo::Amber);
+    drawTextFitInBox(renderer, "main.stats.runs", {650, 632, 230, 14}, "RUNS " + std::to_string(profile.runsCompleted), 1, neo::Cyan);
+    drawTextFitInBox(renderer, "main.stats.tower", {920, 632, 180, 14}, "TOWER " + std::string(ta::chassisName(static_cast<ta::TowerChassis>(profile.equippedChassis))), 1, neo::Violet);
 }
 
 void drawRunTypeSelect(SDL_Renderer* renderer, const ta::DailyChallenge& daily, const ta::ProfileData& profile, const ta::ContentConfig& content, int focus) {
@@ -1132,10 +1132,10 @@ void drawWorkshopConfirmation(SDL_Renderer* renderer, const ta::ProfileData& pro
         currency = "LEGEND CORES";
         masteryReady = ta::isUltimateEvolutionUnlocked(profile, evolution) || profile.ultimateMasteryRuns[static_cast<std::size_t>(ultimate)] >= 3;
         title = ta::isUltimateEvolutionUnlocked(profile, evolution) ? "CONFIRM EVOLUTION EQUIP" : "CONFIRM EVOLUTION UNLOCK";
-        drawWrappedTextInBox(renderer, "workshop.evolutionDescription", UiRect{370, 420, 560, 80}, metadata.shortDescription, 1, neo::Text, 10, 18);
+        drawWrappedTextInBox(renderer, "workshop.evolutionDescription", UiRect{370, 420, 560, 60}, metadata.shortDescription, 1, neo::Text, 10, 18);
         std::string tags;
         for (const std::string& tag : metadata.synergyTags) { if (!tags.empty()) tags += "+"; tags += tag; }
-        drawText(renderer, 380, 466, "MATCH " + tags, 1, neo::Cyan);
+        drawTextFitInBox(renderer, "workshop.evolutionMatch", UiRect{380, 486, 540, 14}, "MATCH " + tags, 1, neo::Cyan);
     } else if (purchase == WorkshopPurchase::UltimateModule) {
         const int moduleIndex = static_cast<int>(ultimate) * 2 + index;
         const ta::UltimateModule module = static_cast<ta::UltimateModule>(moduleIndex);
@@ -1169,7 +1169,7 @@ void drawWorkshopConfirmation(SDL_Renderer* renderer, const ta::ProfileData& pro
     drawTextFitInBox(renderer, "workshop.confirmAvailable", UiRect{380, 370, 540, 16}, "AVAILABLE " + std::to_string(balance), 1, affordable ? neo::Mint : neo::Red);
     const std::uint32_t numericCost = static_cast<std::uint32_t>(std::stoul(cost));
     drawTextFitInBox(renderer, "workshop.confirmBalance", UiRect{380, 388, 540, 16}, "BALANCE AFTER " + std::to_string(balance >= numericCost ? balance - numericCost : 0u), 1, affordable ? neo::Cyan : neo::Muted);
-    if (!change.empty()) drawWrappedTextInBox(renderer, "workshop.purchaseDescription", UiRect{370, 420, 560, 80}, change, 1, neo::Text, 10, 18);
+    if (!change.empty()) drawWrappedTextInBox(renderer, "workshop.purchaseDescription", UiRect{370, 430, 560, 70}, change, 1, neo::Text, 10, 18);
     drawTextFitInBox(renderer, "workshop.confirmNotice", UiRect{380, 410, 540, 16}, !masteryReady ? "MASTERY REQUIRED // COMPLETE 3 RUNS WITH THIS ULTIMATE." : (affordable ? "CONFIRMING WILL APPLY THIS CHANGE IMMEDIATELY." : "NOT ENOUGH CURRENCY // CANCEL OR EARN MORE."), 1, affordable ? neo::Muted : neo::Red);
     drawMenuButton(renderer, workshopConfirmCancelButton, "CANCEL", neo::Cyan);
     drawMenuButton(renderer, workshopConfirmAcceptButton, affordable ? "CONFIRM" : "INSUFFICIENT", affordable ? neo::Mint : neo::Red, affordable);
@@ -1364,18 +1364,18 @@ void drawLoadoutTooltip(SDL_Renderer* renderer, int x, int y, const GameSim& sim
 
 void drawLoadout(SDL_Renderer* renderer, const GameSim& sim, const ta::ProfileData& profile, const ta::DailyChallenge& daily, bool dailyMode) {
     rect(renderer, 0, 0, GameSim::Width, GameSim::Height, neo::Void);
-    chamferOutline(renderer, 96, 54, 1088, 620, {neo::Cyan.r, neo::Cyan.g, neo::Cyan.b, 80}, 20, 1);
-    neoPanel(renderer, 140, 90, 1000, 540, neo::Cyan, false, 16);
+    chamferOutline(renderer, loadoutFrame.x, loadoutFrame.y, loadoutFrame.width, loadoutFrame.height, {neo::Cyan.r, neo::Cyan.g, neo::Cyan.b, 80}, 20, 1);
+    neoPanel(renderer, loadoutPanel.x, loadoutPanel.y, loadoutPanel.width, loadoutPanel.height, neo::Cyan, false, 16);
+    neoPanel(renderer, loadoutDailyHeaderRegion.x, loadoutDailyHeaderRegion.y, loadoutDailyHeaderRegion.width, loadoutDailyHeaderRegion.height, neo::Violet, false, 6);
+    neoPanel(renderer, loadoutSkinHeaderRegion.x, loadoutSkinHeaderRegion.y, loadoutSkinHeaderRegion.width, loadoutSkinHeaderRegion.height, neo::Blue, false, 6);
     drawText(renderer, 190, 116, "TOWER ASCEND", 3, neo::Text);
     drawText(renderer, 190, 150, "LOADOUT // SYSTEM READY", 1, neo::Cyan);
     const ta::ContentMetadata& chassisMetadata = sim.contentConfig().chassisMetadata[static_cast<std::size_t>(sim.chassis())];
-    drawTextFitInBox(renderer, "loadout.chassis.summary", {190, 168, 900, 14}, std::string("CHASSIS // ") + (chassisMetadata.display.empty() ? ta::chassisName(sim.chassis()) : chassisMetadata.display) + " // " + (chassisMetadata.shortDescription.empty() ? ta::chassisDescription(sim.chassis()) : chassisMetadata.shortDescription), 1, neo::Violet);
-    if (daily.chassisRequired) drawText(renderer, 620, 150, "DAILY LOCK // " + std::string(ta::chassisName(daily.requiredChassis)), 1, neo::Violet);
+    drawTextFitInBox(renderer, "loadout.chassis.summary", {190, 168, 620, 14}, std::string("CHASSIS // ") + (chassisMetadata.display.empty() ? ta::chassisName(sim.chassis()) : chassisMetadata.display) + " // " + (chassisMetadata.shortDescription.empty() ? ta::chassisDescription(sim.chassis()) : chassisMetadata.shortDescription), 1, neo::Violet);
     neonDivider(renderer, 190, 174, 900, neo::Cyan);
     std::string skillLine = "SKILLS // ";
     for (std::size_t slot = 0; slot < ta::SkillSlotCount; ++slot) { if (slot > 0) skillLine += "  "; skillLine += std::to_string(slot + 1) + ":" + ta::skillName(sim.skill(slot)); }
-    drawTextFitInBox(renderer, "loadout.skills.summary", {190, 180, 900, 14}, skillLine, 1, neo::Violet);
-    drawText(renderer, 190, 306, "CHASSIS // F1-F3", 1, neo::Muted);
+    drawTextFitInBox(renderer, "loadout.skills.summary", {190, 180, 620, 14}, skillLine, 1, neo::Violet);
     for (int index = 0; index < 3; ++index) {
         const UiRect card = loadoutChassisCard(index);
         const bool chassisLocked = daily.chassisRequired && static_cast<ta::TowerChassis>(index) != daily.requiredChassis;
@@ -1383,7 +1383,6 @@ void drawLoadout(SDL_Renderer* renderer, const GameSim& sim, const ta::ProfileDa
         const ta::ContentMetadata& metadata = sim.contentConfig().chassisMetadata[static_cast<std::size_t>(index)];
         drawTextFitInBox(renderer, "loadout.chassis.card", {card.x + 12, card.y + 7, card.width - 24, 14}, (chassisLocked ? "LOCK // " : "") + (metadata.display.empty() ? std::string(ta::chassisName(static_cast<ta::TowerChassis>(index))) : metadata.display), 1, chassisLocked ? neo::Muted : neo::Text);
     }
-    drawText(renderer, 190, 350, "ARENA // ROUTE PROFILE", 1, neo::Muted);
     const std::array<const char*, 3> arenaLabels{{"MOONBASE", "EMBER", "NEON"}};
     const std::array<Color, 3> arenaColors{{neo::Cyan, neo::Amber, neo::Violet}};
     for (int i = 0; i < 3; ++i) {
@@ -1394,11 +1393,12 @@ void drawLoadout(SDL_Renderer* renderer, const GameSim& sim, const ta::ProfileDa
         neoPanel(renderer, card.x, card.y, card.width, card.height, arenaColors[static_cast<std::size_t>(i)], selected, 6);
         drawTextFitInBox(renderer, "loadout.arena.card", {card.x + 12, card.y + 12, card.width - 24, 14}, locked ? "LOCKED" : arenaLabels[static_cast<std::size_t>(i)], 1, locked ? neo::Muted : neo::Text);
     }
-    drawText(renderer, 900, 96, "SHARDS " + std::to_string(profile.cosmeticShards), 1, neo::Amber);
-    drawText(renderer, 900, 108, "BEST " + std::to_string(profile.bestScore), 1, neo::Muted);
-    drawText(renderer, 190, 378, std::string("AUDIO M") + std::to_string(profile.masterVolume) + " S" + std::to_string(profile.sfxVolume) + " U" + std::to_string(profile.uiVolume), 1, neo::Muted);
-    drawText(renderer, 190, 390, std::string("UI ") + std::to_string(profile.uiScalePercent) + "%  PALETTE " + std::to_string(profile.colorBlindPalette + 1) + "  F10 SETTINGS", 1, neo::Muted);
-    drawText(renderer, 650, 578, "ULTIMATE // MANUAL ACTIVATION", 1, neo::Violet);
+    drawTextFitInBox(renderer, "loadout.currency.shards", {500, 96, 110, 14}, "SHARDS " + std::to_string(profile.cosmeticShards), 1, neo::Amber);
+    drawTextFitInBox(renderer, "loadout.currency.best", {500, 108, 110, 14}, "BEST " + std::to_string(profile.bestScore), 1, neo::Muted);
+    drawTextFitInBox(renderer, "loadout.daily.heading", {620, 96, 190, 18}, "DAILY", 2, neo::Violet);
+    drawTextFitInBox(renderer, "loadout.daily.title", {620, 116, 190, 14}, daily.title, 1, neo::Text);
+    drawTextFitInBox(renderer, "loadout.daily.setup", {620, 130, 190, 14}, (daily.chassisRequired ? std::string("LOCK ") + ta::chassisName(daily.requiredChassis) : std::string("OPEN CHASSIS")) + " // " + (daily.weaponRequired ? std::string("LOCK ") + ta::weaponName(daily.requiredWeapon) : std::string("OPEN WEAPON")), 1, neo::Text);
+    drawTextFitInBox(renderer, "loadout.daily.reward", {620, 144, 190, 14}, "REWARD +" + std::to_string(daily.bonusShards) + " SHARDS", 1, neo::Amber);
     const std::array<Color, 5> colors{{neo::Mint, neo::Amber, neo::Violet, neo::Ice, neo::Red}};
     for (int i = 0; i < 5; ++i) {
         const UiRect card = loadoutWeaponCard(i);
@@ -1424,11 +1424,8 @@ void drawLoadout(SDL_Renderer* renderer, const GameSim& sim, const ta::ProfileDa
     }
     const std::array<const char*, 4> skullLabels{{"SWARM", "GLASS", "HASTE", "GREED"}};
     for (int i = 0; i < 4; ++i) { const UiRect card = loadoutSkullCard(i); drawTextFitInBox(renderer, "loadout.skull.label", {card.x + 10, 445, card.width - 20, 14}, skullLabels[static_cast<std::size_t>(i)], 1, neo::Text); }
-    if (dailyMode) drawText(renderer, 900, 445, "DAILY FIXED", 1, neo::Violet);
     drawText(renderer, 190, 398, "SKULL MODIFIERS // Q-T", 1, neo::Muted);
     drawText(renderer, 900, 398, "SCORE X" + std::to_string(sim.skullScoreMultiplier()).substr(0, 4), 1, neo::Amber);
-    drawText(renderer, 190, 502, "SUPPORT // Z-V", 1, neo::Muted);
-    drawText(renderer, 900, 502, std::string(ta::supportModuleName(sim.support())), 1, neo::Cyan);
     const std::array<const char*, 5> supportLabels{{"NONE", "CREDITS", "STASIS", "REPAIR", "CORROSION"}};
     for (int i = 0; i < 5; ++i) {
         const UiRect card = loadoutSupportCard(i);
@@ -1444,7 +1441,7 @@ void drawLoadout(SDL_Renderer* renderer, const GameSim& sim, const ta::ProfileDa
         neoPanel(renderer, card.x, card.y, card.width, card.height, ultimateColors[static_cast<std::size_t>(i)], i == static_cast<int>(sim.ultimate()), 8);
         drawTextFitInBox(renderer, "loadout.ultimate.card", {card.x + 8, card.y + 18, card.width - 16, 14}, locked ? "LOCKED" : ultimateLabels[static_cast<std::size_t>(i)], 1, locked ? neo::Muted : neo::Text);
     }
-    drawText(renderer, 190, 666, "ACTIVE SKILLS // CLICK A SLOT TO CYCLE UNLOCKED SKILLS", 1, neo::Violet);
+    drawTextFitInBox(renderer, "loadout.skills.title", {190, 574, 900, 14}, "ACTIVE SKILLS // CLICK A SLOT TO CYCLE UNLOCKED SKILLS", 1, neo::Violet);
     for (int slot = 0; slot < static_cast<int>(ta::SkillSlotCount); ++slot) {
         const UiRect button = loadoutSkillButton(slot);
         neoPanel(renderer, button.x, button.y, button.width, button.height, neo::Violet, false, 4);
@@ -1457,11 +1454,6 @@ void drawLoadout(SDL_Renderer* renderer, const GameSim& sim, const ta::ProfileDa
     chamferOutline(renderer, loadoutDailyButton.x, loadoutDailyButton.y, loadoutDailyButton.width, loadoutDailyButton.height, neo::Text, 8, 1);
     drawText(renderer, loadoutStartButton.x + 88, loadoutStartButton.y + 14, "START RUN", 2, neo::Void);
     drawText(renderer, loadoutDailyButton.x + 46, loadoutDailyButton.y + 14, "DAILY", 2, neo::Text);
-    drawText(renderer, 850, 640, "DAILY // CHALLENGE", 1, neo::Violet);
-    drawText(renderer, 850, 650, (daily.chassisRequired ? std::string("REQUIRED ") + ta::chassisName(daily.requiredChassis) : std::string("OPEN CHASSIS")) + " // " + (daily.weaponRequired ? std::string("REQUIRED ") + ta::weaponName(daily.requiredWeapon) : std::string("OPEN WEAPON")), 1, neo::Text);
-    drawText(renderer, 850, 660, std::string("DAILY ") + daily.title + " +" + std::to_string(daily.bonusShards) + " SHARDS", 1, neo::Amber);
-    const bool dailyEvolutionLoaned = daily.requiredEvolution != ta::UltimateEvolution::None && !ta::isUltimateEvolutionUnlocked(profile, daily.requiredEvolution);
-    drawText(renderer, 850, 670, daily.requiredEvolution == ta::UltimateEvolution::None ? "EVOLUTION // OPEN" : std::string("EVOLUTION // REQUIRED ") + ta::ultimateEvolutionName(daily.requiredEvolution) + (dailyEvolutionLoaned ? " // LOANED" : " // OWNED"), 1, neo::Violet);
 }
 
 std::string nextWaveThreatPreview(const GameSim& sim) {
@@ -1549,7 +1541,7 @@ void drawModifierSelect(SDL_Renderer* renderer, const GameSim& sim, const ta::Da
 }
 
 void drawSkinStrip(SDL_Renderer* renderer, const ta::ProfileData& profile, ta::TowerSkin equipped) {
-    drawText(renderer, 900, 132, "SKINS // MODULES", 2, neo::Text);
+    drawTextFitInBox(renderer, "loadout.skin.title", {850, 96, 260, 18}, "SKINS // MODULES", 2, neo::Text);
     const std::array<Color, 5> colors{{neo::Cyan, neo::Amber, neo::Violet, neo::Mint, neo::Amber}};
     for (int i = 0; i < 5; ++i) {
         const ta::TowerSkin skin = static_cast<ta::TowerSkin>(i);
@@ -1561,8 +1553,7 @@ void drawSkinStrip(SDL_Renderer* renderer, const ta::ProfileData& profile, ta::T
         else hexagon(renderer, x + 14, card.y + 14, 7, neo::DarkText, 1);
         drawText(renderer, x + 25, card.y + 9, unlocked ? std::to_string(i + 1) : "X", 1, unlocked ? neo::Text : neo::Muted);
     }
-    drawText(renderer, 900, 182, "6-0 SELECT  K UNLOCK  F10 SETTINGS", 1, neo::Muted);
-    drawText(renderer, 190, 182, "F1-F3 ARENA // SUPPORT Z-V", 1, neo::Muted);
+    drawTextFitInBox(renderer, "loadout.skin.help", {850, 150, 260, 14}, "6-0 SELECT  K UNLOCK  F10 SETTINGS", 1, neo::Muted);
 }
 
 std::string upgradeSynergyPreview(const GameSim& sim, ta::Upgrade candidate) {
