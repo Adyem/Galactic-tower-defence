@@ -55,6 +55,12 @@ add_executable(ta_sim_tests tests/test_sim.cpp)
 target_link_libraries(ta_sim_tests PRIVATE ta_core)
 ta_enable_warnings(ta_sim_tests)
 target_compile_definitions(ta_sim_tests PRIVATE TA_CONTENT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets/content")
+# The integration test intentionally keeps many independent GameSim fixtures
+# alive in one deterministic scenario. Reserve enough Windows stack for that
+# fixture set; this does not affect the runtime executable.
+if (MINGW OR WIN32)
+    target_link_options(ta_sim_tests PRIVATE "-Wl,--stack,8388608")
+endif()
 
 add_executable(ta_ui_layout_tests tests/test_ui_layout.cpp)
 target_include_directories(ta_ui_layout_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

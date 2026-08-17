@@ -84,6 +84,35 @@ std::vector<std::string> stringArrayField(const std::string& record, const char*
     return result;
 }
 
+std::vector<std::string> objectRecords(const std::string& text) {
+    std::vector<std::string> result;
+    std::size_t start = std::string::npos;
+    int depth = 0;
+    bool inString = false;
+    bool escaped = false;
+    for (std::size_t index = 0; index < text.size(); ++index) {
+        const char character = text[index];
+        if (inString) {
+            if (escaped) escaped = false;
+            else if (character == '\\') escaped = true;
+            else if (character == '"') inString = false;
+            continue;
+        }
+        if (character == '"') { inString = true; continue; }
+        if (character == '{') {
+            if (depth == 1) start = index;
+            ++depth;
+        } else if (character == '}' && depth > 0) {
+            --depth;
+            if (depth == 1 && start != std::string::npos) {
+                result.push_back(text.substr(start, index - start + 1));
+                start = std::string::npos;
+            }
+        }
+    }
+    return result;
+}
+
 std::vector<DailyRecipeText> loadDailyRecipes() {
     std::ifstream file(std::filesystem::path(defaultContentDirectory()) / "daily_challenges.json");
     if (!file) return {};
@@ -91,9 +120,7 @@ std::vector<DailyRecipeText> loadDailyRecipes() {
     contents << file.rdbuf();
     const std::string text = contents.str();
     std::vector<DailyRecipeText> recipes;
-    const std::regex objectPattern("\\{[^{}]*\\}");
-    for (std::sregex_iterator it(text.begin(), text.end(), objectPattern), end; it != end; ++it) {
-        const std::string record = (*it)[0].str();
+    for (const std::string& record : objectRecords(text)) {
         if (record.find("\"theme_index\"") == std::string::npos) continue;
         DailyRecipeText recipe;
         recipe.themeIndex = static_cast<int>(numberField(record, "theme_index", 99));

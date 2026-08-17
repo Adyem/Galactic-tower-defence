@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "bounty_objectives": [
+    {"id":"isolate", "display":"ISOLATE", "description":"Keep the marked target away from nearby enemies for the required time.", "event":"isolation_ticks", "kind":0, "target":90, "weight":1},
+    {"id":"reveal", "display":"REVEAL", "description":"Expose a legal weakness on the marked target.", "event":"weakness_revealed", "kind":1, "target":1, "weight":1},
+    {"id":"strike", "display":"STRIKE", "description":"Land a direct skill hit on the marked target.", "event":"direct_hit", "kind":2, "target":1, "weight":1},
+    {"id":"tags", "display":"TAGS", "description":"Hit the target with three distinct skill tag families.", "event":"distinct_tags", "kind":3, "target":3, "weight":1},
+    {"id":"interrupt", "display":"INTERRUPT", "description":"Interrupt the target while its telegraphed attack is active.", "event":"interrupt", "kind":4, "target":1, "weight":1, "boss_allowed":0, "boss_substitute_kind":2},
+    {"id":"deadline", "display":"DEADLINE", "description":"Complete the execution before the visible contract timer expires.", "event":"deadline", "kind":5, "target":240, "weight":1}
+  ]
+}

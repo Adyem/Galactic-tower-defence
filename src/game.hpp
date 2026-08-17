@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <array>
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -42,7 +43,10 @@ constexpr std::size_t SkillSlotCount = 5;
 
 enum class SkillId : std::uint8_t {
     GravityWell, PhaseMine, VanguardDrop, ForwardBarracks, RuinHex,
-    RallyBeacon, SentryFabricator, CryoField, DroneSwarm, ResonancePulse, Count
+    RallyBeacon, SentryFabricator, CryoField, DroneSwarm, ResonancePulse,
+    ArcBolt, ChainLightning, TemporalAnchor, PatientZero, ScrapCache,
+    Wanted, AlphaBeast, MortarBarrage, RiftGate, GuardianWard, LoadedDice,
+    BloodLance, LifeSiphon, HemorrhageField, BloodGolem, LastPulse, TreasonMark, RiotWhisper, PuppetThread, FalseOrders, SharedAgony, Thunderhead, FlashFlood, ThermalSurge, EyeOfTheStorm, BulwarkWall, TrapFoundry, Accelerate, Delay, Rewind, BorrowedTime, DeadeyeShot, Harpoon, ExploitWeakness, CollectorDrone, VectorSwarm, Mutation, RuptureHost, Quarantine, MineLayer, JuryRiggedTurret, StripForParts, ImprovisedArsenal, SpotterDrone, RailCannon, ClusterShell, WalkingBarrage, SpatialCollapse, Banish, PhaseExchange, EventHorizon, Intercept, Challenge, Sanctuary, Judgment, Misfortune, LuckyShot, StackDeck, DoubleNothing, Feed, Adaptation, PackCall, HuntCommand, Count
 };
 
 enum class SkillTargetMode : std::uint8_t { None, WorldPoint, Area, Enemy, Ally, Placement, Lane, Direction };
@@ -57,6 +61,12 @@ struct SkillVisualEvent {
     float radius = 0.0f;
     int remainingTicks = 0;
     std::string branchId;
+};
+
+struct SkillAuthoredMetadata {
+    std::vector<std::string> synergyGroups;
+    std::vector<std::string> searchKeywords;
+    std::string equippedPassiveId;
 };
 
 struct SkillDefinition {
@@ -74,8 +84,30 @@ struct SkillDefinition {
     float radius = 100.0f;
     float valueA = 1.0f;
     float valueB = 1.0f;
+    int healthCost = 0;
+    std::string resourceId;
+    int resourceCost = 0;
+    int resourceRefund = 0;
     std::vector<std::string> tags;
     std::vector<std::string> operations;
+    std::uint8_t authoredMetadataIndex = 255u;
+};
+
+struct SkillDefinitionPack {
+    std::shared_ptr<std::array<SkillDefinition, static_cast<std::size_t>(SkillId::Count)>> data =
+        std::make_shared<std::array<SkillDefinition, static_cast<std::size_t>(SkillId::Count)>>();
+    SkillDefinitionPack() = default;
+    SkillDefinitionPack(const SkillDefinitionPack& other)
+        : data(std::make_shared<std::array<SkillDefinition, static_cast<std::size_t>(SkillId::Count)>>(*other.data)) {}
+    SkillDefinitionPack& operator=(const SkillDefinitionPack& other) {
+        if (this != &other) data = std::make_shared<std::array<SkillDefinition, static_cast<std::size_t>(SkillId::Count)>>(*other.data);
+        return *this;
+    }
+    SkillDefinitionPack(SkillDefinitionPack&&) noexcept = default;
+    SkillDefinitionPack& operator=(SkillDefinitionPack&&) noexcept = default;
+    SkillDefinition& operator[](std::size_t index) { return data->at(index); }
+    const SkillDefinition& operator[](std::size_t index) const { return data->at(index); }
+    constexpr std::size_t size() const { return static_cast<std::size_t>(SkillId::Count); }
 };
 
 struct SkillNodeDefinition {
@@ -90,15 +122,57 @@ struct SkillNodeDefinition {
     int maxRank = 1;
     std::uint32_t cost = 25;
     float cooldownScale = 1.0f;
+    float durationScale = 1.0f;
     float radiusScale = 1.0f;
     float valueScale = 1.0f;
+    float basicDamageScale = 1.0f;
     int chargesDelta = 0;
+};
+
+struct SkillReactionDefinition {
+    std::string id;
+    std::string effect = "damage";
+    int reactionId = 0;
+    int priority = 0;
+    std::vector<std::string> requiredStates;
+    std::vector<std::string> consumedStates;
+    std::vector<std::string> preservedStates;
+    int internalCooldownTicks = 6;
+    int maxGenerationDepth = 0;
+    float damageScale = 1.0f;
+    float controlScale = 1.0f;
+    float controlValue = 0.0f;
+    float secondaryRadius = 0.0f;
+    float secondaryDamageScale = 0.0f;
 };
 
 struct SkillLoadout {
     std::array<SkillId, SkillSlotCount> skills{{SkillId::GravityWell, SkillId::PhaseMine, SkillId::VanguardDrop, SkillId::RuinHex, SkillId::ForwardBarracks}};
     std::array<std::string, SkillSlotCount> nodeBuilds{};
+    std::string doctrineId;
 };
+
+struct SkillLoadoutIdentity {
+    std::string primaryGroup;
+    std::string secondaryGroup;
+    int primaryCount = 0;
+    int secondaryCount = 0;
+    std::vector<std::string> activeGroups;
+    std::vector<std::string> equippedPassives;
+    std::string doctrineId;
+};
+
+struct ClassDoctrineDefinition {
+    const char* id = "";
+    const char* group = "";
+    const char* display = "";
+    const char* description = "";
+    int unlockCount = 3;
+};
+
+const std::array<ClassDoctrineDefinition, 30>& classDoctrineCatalog();
+std::vector<ClassDoctrineDefinition> availableClassDoctrines(const SkillLoadoutIdentity& identity);
+const ClassDoctrineDefinition* classDoctrineForId(const std::string& id);
 
 struct TargetSpec {
     SkillTargetMode mode = SkillTargetMode::None;
@@ -120,10 +194,19 @@ struct SkillSnapshot {
     SkillTargetMode targetMode = SkillTargetMode::None;
     int cooldownRemaining = 0;
     int cooldownMaximum = 0;
+    int resolvedDurationTicks = 0;
+    float resolvedRadius = 0.0f;
+    float resolvedRange = 0.0f;
+    float resolvedValueA = 0.0f;
+    float resolvedValueB = 0.0f;
     int charges = 0;
     int maximumCharges = 0;
     bool selected = false;
     bool validTarget = false;
+    std::string resourceId;
+    int resourceCost = 0;
+    int resourceAvailable = 0;
+    int healthCost = 0;
     std::string iconId;
     std::string branchId;
 };
@@ -137,13 +220,18 @@ struct AlliedUnit {
     float damage = 0.0f;
     float damageScale = 1.0f;
     float speedScale = 1.0f;
+    float damageReduction = 0.0f;
+    bool nextAttackCooldownReduced = false;
     int buffTicks = 0;
+    int injuryTicks = 0;
+    int accelerationTailTicks = 0;
     float radius = 10.0f;
     int attackCooldownTicks = 0;
     int lifetimeTicks = 0;
     SkillId ownerSkill = SkillId::VanguardDrop;
     std::string role;
     bool alive = true;
+    int downedTicks = 0;
 };
 
 struct DeployableBuilding {
@@ -154,9 +242,21 @@ struct DeployableBuilding {
     int lifetimeTicks = 0;
     int spawnCooldownTicks = 0;
     int attackCooldownTicks = 0;
+    float footprintRadius = 45.0f;
+    float effectValue = 0.0f;
+    float networkRangeScale = 1.0f;
+    float networkActionScale = 1.0f;
+    float networkRearmScale = 1.0f;
+    int charges = 0;
     SkillId ownerSkill = SkillId::ForwardBarracks;
     std::string role;
     bool alive = true;
+    float actionSpeedScale = 1.0f;
+    int actionSpeedTicks = 0;
+    int linkedBuildingId = 0;
+    int linkedPrimeTicks = 0;
+    int rampTicks = 0;
+    int rampTargetId = 0;
 };
 
 struct SkillZone {
@@ -171,11 +271,177 @@ struct SkillZone {
     bool triggered = false;
     bool alive = true;
     bool pullsToEdge = false;
+    int processedTicks = 0;
+    Vec2 predictedPosition{};
+    int predictedEnemyId = 0;
+    Vec2 secondaryCenter{};
+    bool gravityAftermathTriggered = false;
+    bool gravitySingularityLocked = false;
+};
+
+struct ResourceSnapshot {
+    int scrap = 0;
+    int scrapOnField = 0;
+    int scrapReserved = 0;
+    int scrapCarryover = 0;
+    int scrapInTransit = 0;
+    int scrapCarryCap = 30;
+    int activeDrones = 0;
+    int claimedDrones = 0;
+    int biomass = 0;
+    int paradox = 0;
+    int instability = 0;
+    int resolve = 0;
+    int fate = 0;
+    int trophies = 0;
+    int targetingData = 0;
+    int bond = 0;
+    int discord = 0;
+    int charge = 0;
+    int buildSupply = 0;
+    int buildSupplyCap = 100;
+};
+
+struct BattlefieldRemain {
+    int id = 0;
+    Vec2 pos{};
+    int value = 0;
+    int biomassValue = 0;
+    EnemyType source = EnemyType::Grunt;
+    int createdTick = 0;
+    int expiryTick = 0;
+    int claimedByDrone = 0;
+    bool consumed = false;
+};
+
+struct RecoveryDrone {
+    int id = 0;
+    Vec2 pos{};
+    float speed = 120.0f;
+    int carrying = 0;
+    int boostTicks = 0;
+    int targetRemainId = 0;
+    bool active = true;
+};
+
+struct EconomyState {
+    ResourceSnapshot resources{};
+    std::vector<BattlefieldRemain> remains;
+    std::vector<RecoveryDrone> drones;
+    int nextRemainId = 1;
+    int nextDroneId = 1;
+    int allowanceWave = 0;
+    int starterBundleWave = 0;
+    int mineFoundryWave = 0;
+    int trapNetworkWave = 0;
+    int turretBatteryWave = 0;
+    int salvageBatteryWave = 0;
+    int salvageModuleReady = 0;
+    int salvagerConstructionMask = 0;
+    int salvagerMasterworkReady = 0;
+    int arsenalAmmoTicks = 0;
+    int arsenalAmmoPayouts = 0;
+    int arsenalInventoryTicks = 0;
+    int arsenalInventoryScrap = 0;
+    int legionSummonCasts = 0;
+    int legionMinorOrders = 0;
+    int legionLastOrderType = 0;
+    int architectNetworkMask = 0;
+    int architectNetworkReady = 0;
+    int arcanistCadence = 0;
+    int arcanistAfterimageReady = 0;
+    int arcanistArcanumReady = 0;
+    int chronomancerOperationMask = 0;
+    int chronomancerStableMomentReady = 0;
+    int stormReactions = 0;
+    int fateBoostTicks = 0;
+    std::array<int, 8> fateQueue{{0, 0, 0, 0, 0, 0, 0, 0}};
+    int fateQueueSize = 0;
+    int fateQueueSerial = 0;
+    int fateUnfavorableBank = 0;
+    int fateHouseTicks = 0;
+    int fateRewriteReady = 0;
+    int fateDoomedOutcomeReady = 0;
+    int fatePreviewEvent = -1;
+    int fateCategoryMask = 0;
+    int plagueDistinctInfectedCount = 0;
+    int plagueFreeMutationReady = 0;
+    std::array<int, 64> plagueInfectedIds{};
+    int artilleristAccurateImpacts = 0;
+    int artilleristFireSolutionReady = 0;
+    int voidSpatialOperationMask = 0;
+    int voidFixedPointReady = 0;
+    int guardianWardTicks = 0;
+    int nextBountyId = 1;
+    int activeBountyId = 0;
+    int activeBountyTargetId = 0;
+    int bountyAgeTicks = 0;
+    int bountyIsolationTicks = 0;
+    int bountyObjectivesCompleted = 0;
+    int bountyKillingMomentumReady = 0;
+    int bountyMomentumObjective = -1;
+    std::uint32_t bountyTagMask = 0;
+    std::string bountyRetainedWeakness;
+    int bountyRetainedWeaknessReady = 0;
+    int bountyCollectorReady = 0;
+    int timeFractureTicks = 0;
+    int chronomancerDebtBurstTicks = 0;
+    int beastAdaptation = 0;
+    int beastAdaptationTicks = 0;
+    int beastAdaptationStreak = 0;
+    bool beastAdaptationPersistent = false;
+    std::uint32_t beastTraitMask = 0;
+    int beastSignatureTrait = 0;
+    int beastSignatureWave = 0;
+    int beastParticipationTicks = 0;
+    int beastPounceEmpoweredTicks = 0;
+    int beastCommandTargetId = 0;
+    int beastCommandTicks = 0;
+    int beastPackTakedownReady = 0;
+    int beastHuntPinReady = 0;
+    int activeVowTicks = 0;
+    int vowStartingLives = 0;
+    int activeVowKind = -1;
+    int activeVowProgress = 0;
+    int activeVowTarget = 0;
+    int vowsCompleted = 0;
+    int oathVowTypeMask = 0;
+    int oathExemplarReady = 0;
+    int oathRewardChoiceA = 0;
+    int oathRewardChoiceB = 0;
+    int bloodDebt = 0;
+    int bloodEclipseTicks = 0;
+    int bloodEclipseHealth = 0;
+    int bloodHeartFragments = 0;
+    int bloodReservoirReady = 0;
+    int bloodHarvestShield = 0;
+    int bloodGolemReserve = 0;
+    int bloodPulseEmpowerTicks = 0;
+    int usurperInfightingKills = 0;
+    int usurperRebelEchoes = 0;
+    int usurperRiotReady = 0;
+    int usurperCivilWarReady = 0;
+    int stormLastReaction = 0;
+    int stormReactionChain = 0;
+    int stormPerfectTicks = 0;
+    int stormTidalMemoryReady = 0;
+    int pandemicTicks = 0;
+    int pandemicPrimeStrain = 0;
+    int pandemicPrimeHostId = 0;
+    int plagueSymbioticWave = 0;
+    std::array<int, 3> stormResonanceIds{{0, 0, 0}};
+    int stormResonanceCount = 0;
+    std::array<int, 3> bountyObjectiveKinds{{-1, -1, -1}};
+    std::array<int, 3> bountyObjectiveProgress{{0, 0, 0}};
+    std::array<int, 3> bountyObjectiveTargets{{1, 1, 1}};
 };
 
 struct Enemy {
     int id = 0;
     Vec2 pos{};
+    std::array<Vec2, 8> pathHistory{};
+    int pathHistoryCount = 0;
+    int pathHistoryHead = 0;
     float hp = 0.0f;
     float maxHp = 0.0f;
     float speed = 0.0f;
@@ -188,6 +454,47 @@ struct Enemy {
     float poison = 0.0f;
     float poisonDps = 0.0f;
     int poisonTicks = 0;
+    int shockTicks = 0;
+    int soakTicks = 0;
+    int freezeTicks = 0;
+    int cryoWhiteoutTicks = 0;
+    int galeTicks = 0;
+    int stormReactionCooldownTicks = 0;
+    int lastStormReactionId = 0;
+    int stormReactionGenerationDepth = 0;
+    int stormLastSetupSkill = -1;
+    int stormLastReactionSkill = -1;
+    int bountyTicks = 0;
+    int bountyId = 0;
+    int infectionTicks = 0;
+    int infectionStacks = 0;
+    int infectionGeneration = 0;
+    int infectionStrain = 0;
+    bool pandemicSpreadUsed = false;
+    int predictedTicks = 0;
+    Vec2 predictedPosition{};
+    int spatialCooldownTicks = 0;
+    int banishedTicks = 0;
+    Vec2 banishReturnPosition{};
+    bool banishReturnArmed = false;
+    int challengeTicks = 0;
+    int temporalDelayTicks = 0;
+    int temporalCancelTicks = 0;
+    int temporalEchoTicks = 0;
+    int temporalAnchorTicks = 0;
+    Vec2 temporalAnchorPosition{};
+    float temporalAnchorHealth = 0.0f;
+    bool temporalAnchorValid = false;
+    bool temporalAnchorProtected = false;
+    int allegiance = 0;
+    int allegianceTicks = 0;
+    bool usurperInheritedMark = false;
+    bool usurperTreasonMark = false;
+    int sharedAgonyTicks = 0;
+    bool ruinBrittleTriggered = false;
+    int confusionTicks = 0;
+    std::string weaknessTag;
+    bool weaknessRewarded = false;
     float vulnerability = 0.0f;
     int vulnerabilityTicks = 0;
     int attackCooldownTicks = 0;
@@ -195,6 +502,8 @@ struct Enemy {
     EnemyType type = EnemyType::Grunt;
     float damageResistance = 0.0f;
     float teleportCooldown = 0.0f;
+    int signalJamTicks = 0;
+    std::vector<int> trapContactIds;
     int phase = 1;
     bool boss = false;
     bool alive = true;
@@ -269,6 +578,28 @@ struct RunTypeMetadata {
     std::string iconId;
 };
 
+struct BountyObjectiveDefinition {
+    std::string id;
+    std::string display;
+    std::string description;
+    int kind = -1;
+    int target = 1;
+    int weight = 1;
+    std::string event;
+    bool bossAllowed = true;
+    int bossSubstituteKind = -1;
+};
+
+struct PlagueMutationDefinition {
+    std::string id;
+    int strain = 0;
+    float damageScale = 1.0f;
+    float spreadRadius = 92.0f;
+    float hostileDamage = 0.0f;
+    int biomassValue = 1;
+    std::string behavior;
+};
+
 struct ContentConfig {
     std::array<ContentMetadata, 3> chassisMetadata{};
     std::array<ContentMetadata, 5> weaponMetadata{};
@@ -295,8 +626,12 @@ struct ContentConfig {
     std::vector<ContentMetadata> statusMetadata;
     std::vector<ContentMetadata> allyMetadata;
     std::vector<ContentMetadata> buildingMetadata;
-    std::array<SkillDefinition, static_cast<std::size_t>(SkillId::Count)> skillDefinitions{};
+    SkillDefinitionPack skillDefinitions{};
+    std::shared_ptr<std::array<SkillAuthoredMetadata, static_cast<std::size_t>(SkillId::Count)>> skillMetadata;
     std::vector<SkillNodeDefinition> skillNodes;
+    std::vector<SkillReactionDefinition> skillReactions;
+    std::vector<BountyObjectiveDefinition> bountyObjectives;
+    std::vector<PlagueMutationDefinition> plagueMutations;
     std::uint32_t skillCatalogHash = 0;
     std::size_t maxAlliedUnits = 64;
     std::size_t maxBuildings = 16;
@@ -353,6 +688,8 @@ struct ContentConfig {
     int bossAttackLives = 2;
     std::uint32_t ultimateEvolutionCatalogHash = 0;
     std::uint32_t dailyChallengeCatalogHash = 0;
+    std::uint32_t bountyObjectiveCatalogHash = 0;
+    std::uint32_t plagueMutationCatalogHash = 0;
     std::uint32_t supportModuleCatalogHash = 0;
     std::uint32_t skillEntityCatalogHash = 0;
     std::array<int, 3> runExpectedMinutes{{8, 15, 8}};
@@ -378,6 +715,11 @@ public:
 
     explicit GameSim(std::uint32_t seed = 0xC0FFEEu);
 
+    // Run checkpoints are simulation-only snapshots. They intentionally copy
+    // all combat/economy state but do not involve the renderer or SDL.
+    GameSim checkpoint() const;
+    void restoreCheckpoint(const GameSim& checkpoint);
+
     void reset(std::uint32_t seed);
     void tick();
     void activateUltimate();
@@ -395,6 +737,7 @@ public:
     void setUltimateEvolution(UltimateEvolution evolution);
     void setUltimateModule(UltimateModule module);
     void setAutoUltimate(bool enabled);
+    void cycleMutationStrain(int delta);
     void setEndless(bool enabled);
     void setSkin(TowerSkin skin);
     void setArena(Arena arena);
@@ -413,6 +756,7 @@ public:
     int waveNumber() const { return wave; }
     int currencyAmount() const { return currency; }
     int livesRemaining() const { return lives; }
+    int maxLivesAllowed() const { return maxLives; }
     int enemiesRemaining() const;
     int enemiesSpawnedThisWave() const { return spawnedThisWave; }
     int enemiesTargetThisWave() const { return waveSpawnTarget; }
@@ -438,11 +782,90 @@ public:
     const std::vector<Upgrade>& pendingChoices() const { return choices; }
     const std::vector<Upgrade>& upgrades() const { return ownedUpgrades; }
     const SkillLoadout& skillLoadout() const { return skillLoadoutState; }
+    SkillLoadoutIdentity skillLoadoutIdentity() const;
+    bool hasResonantUltimate() const;
+    std::string resonantUltimateName() const;
     SkillId skill(std::size_t slot) const { return skillLoadoutState.skills[std::min(slot, SkillSlotCount - 1u)]; }
     SkillSnapshot skillSnapshot(std::size_t slot) const;
     const std::vector<AlliedUnit>& alliedUnits() const { return alliedUnitsList; }
     const std::vector<DeployableBuilding>& deployableBuildings() const { return buildings; }
     const std::vector<SkillZone>& skillZones() const { return zones; }
+    ResourceSnapshot resources() const;
+    int arcanistCadence() const { return economyState->arcanistCadence; }
+    bool arcanistArcanumReady() const { return economyState->arcanistArcanumReady != 0; }
+    bool arcanistAfterimageReady() const { return economyState->arcanistAfterimageReady != 0; }
+    int activeBountyId() const { return economyState->activeBountyId; }
+    int bountyAgeTicks() const { return economyState->bountyAgeTicks; }
+    int bountyObjectivesCompleted() const { return economyState->bountyObjectivesCompleted; }
+    bool bountyKillingMomentumReady() const { return economyState->bountyKillingMomentumReady != 0; }
+    int bountyMomentumObjective() const { return economyState->bountyMomentumObjective; }
+    int bountyObjectiveKind(std::size_t index) const { return index < economyState->bountyObjectiveKinds.size() ? economyState->bountyObjectiveKinds[index] : -1; }
+    int bountyObjectiveProgress(std::size_t index) const { return index < economyState->bountyObjectiveProgress.size() ? economyState->bountyObjectiveProgress[index] : 0; }
+    int bountyObjectiveTarget(std::size_t index) const { return index < economyState->bountyObjectiveTargets.size() ? economyState->bountyObjectiveTargets[index] : 1; }
+    const BountyObjectiveDefinition* bountyObjectiveDefinition(std::size_t index) const;
+    bool timeFractureActive() const { return economyState->timeFractureTicks > 0; }
+    int beastAdaptation() const { return economyState->beastAdaptation; }
+    int beastAdaptationTicks() const { return economyState->beastAdaptationTicks; }
+    int beastAdaptationStreak() const { return economyState->beastAdaptationStreak; }
+    bool beastAdaptationPersistent() const { return economyState->beastAdaptationPersistent; }
+    bool beastPounceEmpowered() const { return economyState->beastPounceEmpoweredTicks > 0; }
+    bool beastPackTakedownReady() const { return economyState->beastPackTakedownReady != 0; }
+    bool beastHuntPinReady() const { return economyState->beastHuntPinReady != 0; }
+    int mutationStrain() const { return mutationStrainSelection; }
+    int plagueDistinctInfectedCount() const { return economyState->plagueDistinctInfectedCount; }
+    bool plagueFreeMutationReady() const { return economyState->plagueFreeMutationReady != 0; }
+    int artilleristAccurateImpacts() const { return economyState->artilleristAccurateImpacts; }
+    bool artilleristFireSolutionReady() const { return economyState->artilleristFireSolutionReady != 0; }
+    int voidSpatialOperationMask() const { return economyState->voidSpatialOperationMask; }
+    bool voidFixedPointReady() const { return economyState->voidFixedPointReady != 0; }
+    int activeVowTicks() const { return economyState->activeVowTicks; }
+    int activeVowKind() const { return economyState->activeVowKind; }
+    int activeVowProgress() const { return economyState->activeVowProgress; }
+    int activeVowTarget() const { return economyState->activeVowTarget; }
+    int vowsCompleted() const { return economyState->vowsCompleted; }
+    int oathVowTypeMask() const { return economyState->oathVowTypeMask; }
+    bool oathExemplarReady() const { return economyState->oathExemplarReady != 0; }
+    int oathRewardChoiceA() const { return economyState->oathRewardChoiceA; }
+    int oathRewardChoiceB() const { return economyState->oathRewardChoiceB; }
+    bool chooseOathReward(int choice);
+    int bloodDebt() const { return economyState->bloodDebt; }
+    int bloodHarvestShield() const { return economyState->bloodHarvestShield; }
+    int bloodGolemReserve() const { return economyState->bloodGolemReserve; }
+    int salvageModuleReady() const { return economyState->salvageModuleReady; }
+    int salvagerConstructionMask() const { return economyState->salvagerConstructionMask; }
+    bool salvagerMasterworkReady() const { return economyState->salvagerMasterworkReady != 0; }
+    int legionSummonCasts() const { return economyState->legionSummonCasts; }
+    int legionMinorOrders() const { return economyState->legionMinorOrders; }
+    int legionLastOrderType() const { return economyState->legionLastOrderType; }
+    int architectNetworkMask() const { return economyState->architectNetworkMask; }
+    bool architectNetworkReady() const { return economyState->architectNetworkReady != 0; }
+    int chronomancerOperationMask() const { return economyState->chronomancerOperationMask; }
+    bool chronomancerStableMomentReady() const { return economyState->chronomancerStableMomentReady != 0; }
+    int buildSupply() const { return economyState->resources.buildSupply; }
+    int buildSupplyCap() const { return economyState->resources.buildSupplyCap; }
+    int stormPerfectTicks() const { return economyState->stormPerfectTicks; }
+    int stormResonanceCount() const { return economyState->stormResonanceCount; }
+    int stormResonanceId(std::size_t index) const { return index < economyState->stormResonanceIds.size() && index < static_cast<std::size_t>(economyState->stormResonanceCount) ? economyState->stormResonanceIds[index] : 0; }
+    std::uint32_t stormTargetStateMask(Vec2 center, float radius) const;
+    std::uint32_t stormTargetReactionMask(Vec2 center, float radius) const;
+    int pandemicTicks() const { return economyState->pandemicTicks; }
+    int pandemicPrimeStrain() const { return economyState->pandemicPrimeStrain; }
+    int fateEventAt(std::size_t index) const { return index < static_cast<std::size_t>(economyState->fateQueueSize) ? economyState->fateQueue[index] : -1; }
+    int fateQueueSize() const { return economyState->fateQueueSize; }
+    int fateQueuePreviewCount() const { return hasEquippedSkillNode("fate_deck_mastery") ? 6 : (hasEquippedSkillNode("fate_deck") ? 5 : 4); }
+    int fateUnfavorableBank() const { return economyState->fateUnfavorableBank; }
+    int fateHouseTicks() const { return economyState->fateHouseTicks; }
+    int fateBoostTicks() const { return economyState->fateBoostTicks; }
+    bool fateRewriteReady() const { return economyState->fateRewriteReady != 0; }
+    int fatePreviewEvent() const { return economyState->fatePreviewEvent; }
+    int beastSignatureTrait() const { return economyState->beastSignatureTrait; }
+    int beastParticipationTicks() const { return economyState->beastParticipationTicks; }
+    int bloodEclipseHealth() const { return economyState->bloodEclipseHealth; }
+    int bloodHeartFragments() const { return economyState->bloodHeartFragments; }
+    bool bloodReservoirReady() const { return economyState->bloodReservoirReady != 0; }
+    int usurperInfightingKills() const { return economyState->usurperInfightingKills; }
+    const std::vector<BattlefieldRemain>& battlefieldRemains() const { return economyState->remains; }
+    const std::vector<RecoveryDrone>& recoveryDrones() const { return economyState->drones; }
     const std::vector<SkillVisualEvent>& skillVisualEvents() const { return skillVisualEventsList; }
     std::uint32_t lastSkillCastSequence() const { return nextSkillCastSequence == 0 ? 0 : nextSkillCastSequence - 1; }
     const std::string& lastSkillError() const { return skillError; }
@@ -464,7 +887,7 @@ private:
     void updateProjectiles();
     void fireWeapon();
     void resolveDeath(Enemy& enemy);
-    void applyDamage(Enemy& enemy, float damage);
+    void applyDamage(Enemy& enemy, float damage, bool allowSharedAgonyEcho = true);
     void chainDamage(Vec2 origin, int sourceId, float damage);
     void createUpgradeChoices();
     void applyUpgrade(Upgrade upgrade);
@@ -473,6 +896,13 @@ private:
     void updateAlliedUnits();
     void updateBuildings();
     void updateSkillZones();
+    void initializeFateQueue();
+    int drawFateEvent();
+    int deterministicFateEvent(int serial) const;
+    void updateEconomyEntities();
+    void createBattlefieldRemain(const Enemy& enemy, int value, int biomassValue = 0);
+    bool hasSkillGroup(const std::string& group) const;
+    bool hasEquippedSkillNode(const std::string& nodeId) const;
     void updateSkillVisualEvents();
     bool validateSkillTarget(std::size_t slot, const TargetSpec& target, std::string* error) const;
     bool castSkill(const SkillCastRequest& request, std::string* error);
@@ -501,6 +931,7 @@ private:
     int ultimateMaxCooldown = TickRate * 18;
     int ultimateBoostTicks = 0;
     int nextEnemyId = 1;
+    int mutationStrainSelection = 1;
     bool gameOver = false;
     bool victory = false;
     bool upgradeChoicePending = false;
@@ -539,6 +970,7 @@ private:
     std::vector<AlliedUnit> alliedUnitsList;
     std::vector<DeployableBuilding> buildings;
     std::vector<SkillZone> zones;
+    std::shared_ptr<EconomyState> economyState = std::make_shared<EconomyState>();
     std::uint32_t nextSkillVisualEventId = 1;
     std::vector<SkillVisualEvent> skillVisualEventsList;
     SimStats counters{};

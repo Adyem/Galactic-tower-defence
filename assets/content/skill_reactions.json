@@ -1,0 +1,11 @@
+{
+  "reactions": [
+    {"id":"conductive_arc","effect":"damage","reaction_id":1,"priority":10,"required_states":["shock","soak"],"consumed_states":["soak"],"preserved_states":["shock"],"internal_cooldown_ticks":6,"max_generation_depth":0,"damage_scale":1.35,"control_scale":1.0},
+    {"id":"flash_freeze","effect":"freeze","reaction_id":2,"priority":20,"required_states":["freeze","soak"],"consumed_states":["soak"],"preserved_states":["freeze"],"internal_cooldown_ticks":6,"max_generation_depth":0,"damage_scale":0.85,"control_scale":1.0,"control_value":0.8},
+    {"id":"shatter","effect":"shatter","reaction_id":3,"priority":30,"required_states":["freeze","direct_hit"],"consumed_states":["freeze"],"preserved_states":[],"internal_cooldown_ticks":6,"max_generation_depth":0,"damage_scale":0.8,"control_scale":0.5,"control_value":0.65,"secondary_radius":54.0,"secondary_damage_scale":0.22},
+    {"id":"firestorm","effect":"spread_burn","reaction_id":4,"priority":40,"required_states":["gale","ignite"],"consumed_states":["gale"],"preserved_states":["ignite"],"internal_cooldown_ticks":6,"max_generation_depth":0,"damage_scale":1.10,"control_scale":1.0,"control_value":0.7,"secondary_radius":92.0,"secondary_damage_scale":0.40},
+    {"id":"plasma_burst","effect":"stun","reaction_id":5,"priority":50,"required_states":["shock","ignite"],"consumed_states":["shock","ignite"],"preserved_states":[],"internal_cooldown_ticks":6,"max_generation_depth":0,"damage_scale":1.60,"control_scale":1.0,"control_value":0.35},
+    {"id":"steam_burst","effect":"slow","reaction_id":6,"priority":60,"required_states":["ignite","soak_or_freeze"],"consumed_states":["soak_or_freeze"],"preserved_states":[],"internal_cooldown_ticks":6,"max_generation_depth":0,"damage_scale":1.10,"control_scale":1.0,"control_value":1.5},
+    {"id":"supercell","effect":"stun","reaction_id":7,"priority":70,"required_states":["shock","soak","storm_zone"],"consumed_states":["soak"],"preserved_states":["shock"],"internal_cooldown_ticks":12,"max_generation_depth":0,"damage_scale":1.10,"control_scale":1.0,"control_value":0.5}
+  ]
+}

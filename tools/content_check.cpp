@@ -16,6 +16,36 @@
 namespace {
 struct Requirement { const char* file; std::vector<const char*> tokens; };
 
+std::vector<std::string> flatObjectRecords(const std::string& text) {
+    std::vector<std::string> records;
+    std::vector<std::size_t> starts;
+    bool quoted = false;
+    bool escaped = false;
+    for (std::size_t index = 0; index < text.size(); ++index) {
+        const char character = text[index];
+        if (quoted) {
+            if (escaped) escaped = false;
+            else if (character == '\\') escaped = true;
+            else if (character == '"') quoted = false;
+            continue;
+        }
+        if (character == '"') { quoted = true; continue; }
+        if (character == '{') starts.push_back(index);
+        else if (character == '}' && !starts.empty()) {
+            if (starts.size() > 1u) records.emplace_back(text.substr(starts.back(), index - starts.back() + 1));
+            starts.pop_back();
+        }
+    }
+    return records;
+}
+
+int keyCount(const std::string& text, const char* key) {
+    const std::string token = std::string("\"") + key + "\"";
+    int count = 0;
+    for (std::size_t position = text.find(token); position != std::string::npos; position = text.find(token, position + token.size())) ++count;
+    return count;
+}
+
 std::uint32_t rotateRight(std::uint32_t value, unsigned int amount) {
     return (value >> amount) | (value << (32u - amount));
 }
@@ -190,10 +220,37 @@ bool validateSkillContent(const std::filesystem::path& skillsPath, const std::fi
     std::ostringstream treesBuffer; treesBuffer << treesInput.rdbuf();
     const std::string skills = skillsBuffer.str();
     const std::string trees = treesBuffer.str();
-    const std::regex idPattern("\\\"id\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
-    const char* expected[] = {"gravity_well", "phase_mine", "vanguard_drop", "forward_barracks", "ruin_hex", "rally_beacon", "sentry_fabricator", "cryo_field", "drone_swarm", "resonance_pulse"};
-    std::set<std::string> ids;
     bool ok = true;
+    // Keep the authored operation vocabulary closed at the content boundary.
+    // Runtime dispatch remains deliberately centralized in GameSim, but a
+    // typo or half-migrated operation must fail content validation instead of
+    // becoming a partial cast when another operation in the same list runs.
+    const std::set<std::string> runtimeOperations{
+        "accelerate", "adapt_beast", "apply_freeze", "apply_gale", "apply_ignite", "apply_shock", "apply_slow", "apply_soak", "apply_weakness",
+        "banish", "blood_field", "blood_golem", "blood_strike", "borrow_time", "capture_snapshot", "challenge", "cluster_shell", "collector_drone",
+        "consume_shock", "create_zone", "damage_area", "damage_over_time", "deadeye_shot", "delay_event", "delayed_damage", "displace", "double_nothing",
+        "event_horizon", "exploit_weakness", "eye_storm", "false_orders", "fate_boost", "feed_beast", "flash_flood", "generate_scrap", "harpoon",
+        "heal_allies", "hunt_command", "improvised_arsenal", "infect", "intercept", "judgment", "jury_rigged_turret", "last_pulse", "life_siphon",
+        "lucky_shot", "mark_bounty", "mine_layer", "misfortune", "mutation", "pack_call", "phase_exchange", "place_trap", "place_wall", "pounce",
+        "puppet_thread", "quarantine", "rail_cannon", "resolve_reaction", "rewind_enemies", "riot_whisper", "rupture_host", "sanctuary", "shared_agony",
+        "spatial_collapse", "spotter_drone", "stack_deck", "strip_for_parts", "treason_mark", "vector_swarm", "walking_barrage", "ward",
+        "boost_deployed_collectors", "buff_allies"
+    };
+    const std::regex operationsArrayPattern("\\\"operations\\\"\\s*:\\s*\\[([^\\]]*)\\]");
+    const std::regex operationValuePattern("\\\"([^\\\"]+)\\\"");
+    for (std::sregex_iterator arrayIt(skills.begin(), skills.end(), operationsArrayPattern), end; arrayIt != end; ++arrayIt) {
+        const std::string operationList = (*arrayIt)[1].str();
+        for (std::sregex_iterator operationIt(operationList.begin(), operationList.end(), operationValuePattern), operationEnd; operationIt != operationEnd; ++operationIt) {
+            const std::string operation = (*operationIt)[1].str();
+            if (runtimeOperations.find(operation) == runtimeOperations.end()) {
+                std::cerr << "skill content references unsupported authored operation '" << operation << "'\n";
+                ok = false;
+            }
+        }
+    }
+    const std::regex idPattern("\\\"id\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
+    const char* expected[] = {"gravity_well", "phase_mine", "vanguard_drop", "forward_barracks", "ruin_hex", "rally_beacon", "sentry_fabricator", "cryo_field", "drone_swarm", "resonance_pulse", "arc_bolt", "chain_lightning", "temporal_anchor", "patient_zero", "scrap_cache", "wanted", "alpha_beast", "mortar_barrage", "rift_gate", "guardian_ward", "loaded_dice", "blood_lance", "life_siphon", "hemorrhage_field", "blood_golem", "last_pulse", "treason_mark", "riot_whisper", "puppet_thread", "false_orders", "shared_agony", "thunderhead", "flash_flood", "thermal_surge", "eye_of_the_storm", "bulwark_wall", "trap_foundry", "accelerate", "delay", "rewind", "borrowed_time", "deadeye_shot", "harpoon", "exploit_weakness", "collector_drone", "vector_swarm", "mutation", "rupture_host", "quarantine", "mine_layer", "jury_rigged_turret", "strip_for_parts", "improvised_arsenal", "spotter_drone", "rail_cannon", "cluster_shell", "walking_barrage", "spatial_collapse", "banish", "phase_exchange", "event_horizon", "intercept", "challenge", "sanctuary", "judgment", "misfortune", "lucky_shot", "stack_deck", "double_nothing", "feed", "adaptation", "pack_call", "hunt_command"};
+    std::set<std::string> ids;
     for (std::sregex_iterator it(skills.begin(), skills.end(), idPattern), end; it != end; ++it) ids.insert((*it)[1].str());
     for (const char* id : expected) if (ids.find(id) == ids.end()) { std::cerr << "missing skill id '" << id << "'\n"; ok = false; }
     if (ids.size() != std::size(expected)) { std::cerr << "skill definition count mismatch\n"; ok = false; }
@@ -201,19 +258,17 @@ bool validateSkillContent(const std::filesystem::path& skillsPath, const std::fi
         const std::regex fieldPattern(std::string("\\\"") + field + "\\\"\\s*:");
         int count = 0;
         for (std::sregex_iterator it(skills.begin(), skills.end(), fieldPattern), end; it != end; ++it) ++count;
-        if (count != 10) { std::cerr << "skill field '" << field << "' count mismatch\n"; ok = false; }
+        if (count != 73) { std::cerr << "skill field '" << field << "' count mismatch\n"; ok = false; }
     }
-    const int nodeCount = static_cast<int>(std::distance(std::sregex_iterator(trees.begin(), trees.end(), idPattern), std::sregex_iterator()));
+    const std::vector<std::string> treeRecords = flatObjectRecords(trees);
+    const int nodeCount = static_cast<int>(treeRecords.size());
     if (nodeCount < 30) { std::cerr << "skill tree must define at least thirty nodes\n"; ok = false; }
     for (const char* field : {"skill_id", "parent_id", "branch_id", "display", "description", "icon_layer", "tier", "max_rank", "cost"}) {
-        const std::regex fieldPattern(std::string("\\\"") + field + "\\\"\\s*:");
-        int count = 0;
-        for (std::sregex_iterator it(trees.begin(), trees.end(), fieldPattern), end; it != end; ++it) ++count;
+        const int count = keyCount(trees, field);
         if (count != nodeCount) { std::cerr << "skill tree field '" << field << "' count mismatch\n"; ok = false; }
     }
     std::map<std::string, std::set<std::string>> branches;
     std::map<std::string, int> highestTier;
-    const std::regex nodeRecordPattern("\\{[^{}]*\\}");
     const auto stringField = [](const std::string& record, const char* key) {
         std::smatch match;
         if (std::regex_search(record, match, std::regex(std::string("\\\"") + key + "\\\"\\s*:\\s*\\\"([^\\\"]*)\\\""))) return match[1].str();
@@ -224,8 +279,7 @@ bool validateSkillContent(const std::filesystem::path& skillsPath, const std::fi
         if (std::regex_search(record, match, std::regex(std::string("\\\"") + key + "\\\"\\s*:\\s*(-?[0-9]+)"))) return std::stoi(match[1].str());
         return 0;
     };
-    for (std::sregex_iterator it(trees.begin(), trees.end(), nodeRecordPattern), end; it != end; ++it) {
-        const std::string record = (*it)[0].str();
+    for (const std::string& record : treeRecords) {
         const std::string skill = stringField(record, "skill_id");
         const std::string branch = stringField(record, "branch_id");
         const int tier = integerField(record, "tier");
@@ -235,6 +289,48 @@ bool validateSkillContent(const std::filesystem::path& skillsPath, const std::fi
     for (const char* skill : expected) if (branches[skill].size() < 2u || highestTier[skill] < 4) {
         std::cerr << "skill tree lacks two branches or a tier-four capstone for '" << skill << "'\n";
         ok = false;
+    }
+    const std::array<const char*, 5> requiredBeastAdaptations{{"adapt_armor", "adapt_lightning", "adapt_regen", "adapt_burrow", "adapt_spiked"}};
+    for (const char* nodeId : requiredBeastAdaptations) {
+        bool found = false;
+        for (const std::string& record : treeRecords) if (stringField(record, "id") == nodeId && stringField(record, "skill_id") == "adaptation") { found = true; break; }
+        if (!found) {
+            std::cerr << "Beastmaster adaptation tree is missing authored node '" << nodeId << "'\n";
+            ok = false;
+        }
+    }
+    const std::array<const char*, 15> requiredSkillGroups{{
+        "arcanist", "legion", "bloodbinder", "usurper", "architect", "stormcaller",
+        "chronomancer", "bounty_hunter", "plaguewright", "salvager", "beastmaster",
+        "artillerist", "void_shepherd", "oathkeeper", "fatebinder"
+    }};
+    for (const char* group : requiredSkillGroups) {
+        const std::regex groupPattern(std::string("\\\"synergy_groups\\\"\\s*:\\s*\\[[^\\]]*\\\"") + group + "\\\"");
+        int authoredSkills = 0;
+        for (std::sregex_iterator it(skills.begin(), skills.end(), groupPattern), end; it != end; ++it) ++authoredSkills;
+        if (authoredSkills < 5) {
+            std::cerr << "synergy group '" << group << "' has fewer than five authored skills\n";
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+bool validateSkillReactionContent(const std::filesystem::path& path) {
+    std::ifstream input(path);
+    if (!input) return false;
+    std::ostringstream buffer; buffer << input.rdbuf();
+    const std::string text = buffer.str();
+    const std::regex idPattern("\\\"id\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
+    std::set<std::string> ids;
+    bool ok = true;
+    for (std::sregex_iterator it(text.begin(), text.end(), idPattern), end; it != end; ++it) if (!ids.insert((*it)[1].str()).second) { std::cerr << "duplicate skill reaction id\n"; ok = false; }
+    if (ids.size() != 7u) { std::cerr << "skill reaction registry must define seven reactions\n"; ok = false; }
+    for (const char* field : {"reaction_id", "priority", "required_states", "consumed_states", "preserved_states", "internal_cooldown_ticks", "max_generation_depth", "damage_scale", "control_scale"}) {
+        const std::regex fieldPattern(std::string("\\\"") + field + "\\\"\\s*:");
+        int count = 0;
+        for (std::sregex_iterator it(text.begin(), text.end(), fieldPattern), end; it != end; ++it) ++count;
+        if (count != 7) { std::cerr << "skill reaction field '" << field << "' count mismatch\n"; ok = false; }
     }
     return ok;
 }
@@ -384,7 +480,7 @@ int main(int argc, char** argv) {
         {"ultimates.json", {"meteor_rain", "bullet_storm", "absolute_zero", "gravity_shift", "energy_surge"}},
         {"ultimate_evolutions.json", {"solar_aftermath", "extinction_spear", "shattered_sky", "resonant_arsenal", "suppressive_grid", "execution_protocol", "brittle_singularity", "permafrost_engine", "cold_conductor", "event_horizon", "chrono_reversal", "mass_driver", "overdrive_link", "chain_reactor", "terminal_discharge"}},
         {"ultimate_modules.json", {"meteor_quick_charge", "meteor_overload", "bullet_suppressor", "bullet_focus", "zero_field", "zero_shatter", "gravity_well", "gravity_reversal", "surge_overdrive", "surge_discharge"}},
-        {"skills.json", {"gravity_well", "phase_mine", "vanguard_drop", "forward_barracks", "ruin_hex", "rally_beacon", "sentry_fabricator", "cryo_field", "drone_swarm", "resonance_pulse"}},
+        {"skills.json", {"gravity_well", "phase_mine", "vanguard_drop", "forward_barracks", "ruin_hex", "rally_beacon", "sentry_fabricator", "cryo_field", "drone_swarm", "resonance_pulse", "arc_bolt", "chain_lightning", "temporal_anchor", "patient_zero", "scrap_cache", "wanted", "alpha_beast", "mortar_barrage", "rift_gate", "guardian_ward", "loaded_dice", "blood_lance", "life_siphon", "hemorrhage_field", "blood_golem", "last_pulse", "treason_mark", "riot_whisper", "puppet_thread", "false_orders", "shared_agony", "thunderhead", "flash_flood", "thermal_surge", "eye_of_the_storm", "bulwark_wall", "trap_foundry", "accelerate", "delay", "rewind", "borrowed_time", "deadeye_shot", "harpoon", "exploit_weakness", "collector_drone", "vector_swarm", "mutation", "rupture_host", "quarantine", "mine_layer", "jury_rigged_turret", "strip_for_parts", "improvised_arsenal", "spotter_drone", "rail_cannon", "cluster_shell", "walking_barrage", "spatial_collapse", "banish", "phase_exchange", "event_horizon", "intercept", "challenge", "sanctuary", "judgment", "misfortune", "lucky_shot", "stack_deck", "double_nothing", "feed", "adaptation", "pack_call", "hunt_command"}},
         {"statuses.json", {"slow", "weakness", "stun", "burn", "shield"}},
         {"allies.json", {"soldier", "striker", "bulwark", "drone", "disruptor"}},
         {"buildings.json", {"barracks", "armory", "sentry", "mortar"}},
@@ -415,9 +511,10 @@ int main(int argc, char** argv) {
     ok = validateMetadata(root / "allies.json", 5) && ok;
     ok = validateMetadata(root / "buildings.json", 4) && ok;
     ok = validateSkillContent(root / "skills.json", root / "skill_trees.json") && ok;
+    ok = validateSkillReactionContent(root / "skill_reactions.json") && ok;
     ok = validateDailyRecipeMetadata(root / "daily_challenges.json", 7) && ok;
     ok = validateDailyRecipeReferences(root / "daily_challenges.json") && ok;
-    ok = validate(root.parent_path() / "manifest.json", {"content.run_types", "content.tower_chassis", "content.support_modules", "content.currencies", "content.workshop", "content.daily_challenges", "content.synergies", "content.skills", "content.skill_trees", "content.statuses", "content.allies", "content.buildings", "content.weapons", "content.upgrades", "content.skulls", "content.waves", "content.enemies", "content.ultimates", "content.ultimate_evolutions", "content.ultimate_modules", "content.skins", "content.arenas", "\"license\":\"project\""}) && ok;
+    ok = validate(root.parent_path() / "manifest.json", {"content.run_types", "content.tower_chassis", "content.support_modules", "content.currencies", "content.workshop", "content.daily_challenges", "content.synergies", "content.skills", "content.skill_trees", "content.skill_reactions", "content.statuses", "content.allies", "content.buildings", "content.weapons", "content.upgrades", "content.skulls", "content.waves", "content.enemies", "content.ultimates", "content.ultimate_evolutions", "content.ultimate_modules", "content.skins", "content.arenas", "\"license\":\"project\""}) && ok;
     ok = validateManifest(root) && ok;
     ta::ContentConfig loaded;
     std::string contentError;

@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "plague_mutations": [
+    {"id":"necrotic", "strain":1, "behavior":"damage", "damage_scale":1.35, "spread_radius":92.0, "hostile_damage":0.0, "biomass_value":2},
+    {"id":"rabid", "strain":2, "behavior":"hostile_damage", "damage_scale":1.0, "spread_radius":110.0, "hostile_damage":1.5, "biomass_value":1},
+    {"id":"spore", "strain":3, "behavior":"burst", "damage_scale":0.75, "spread_radius":132.0, "hostile_damage":0.0, "biomass_value":1},
+    {"id":"symbiotic", "strain":4, "behavior":"husk", "damage_scale":1.0, "spread_radius":92.0, "hostile_damage":0.0, "biomass_value":2}
+  ]
+}

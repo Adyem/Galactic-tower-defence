@@ -83,10 +83,34 @@ std::vector<std::string> stringsForKey(const std::string& record, const char* ke
     return result;
 }
 
+std::vector<std::string> objectRecords(const std::string& text) {
+    std::vector<std::string> records;
+    std::vector<std::size_t> starts;
+    bool quoted = false;
+    bool escaped = false;
+    for (std::size_t index = 0; index < text.size(); ++index) {
+        const char character = text[index];
+        if (quoted) {
+            if (escaped) escaped = false;
+            else if (character == '\\') escaped = true;
+            else if (character == '"') quoted = false;
+            continue;
+        }
+        if (character == '"') { quoted = true; continue; }
+        if (character == '{') starts.push_back(index);
+        else if (character == '}' && !starts.empty()) {
+            // The outer document object contains the array; only return its
+            // flat child objects so a key lookup cannot accidentally match
+            // the first child while scanning the whole document.
+            if (starts.size() > 1u) records.emplace_back(text.substr(starts.back(), index - starts.back() + 1));
+            starts.pop_back();
+        }
+    }
+    return records;
+}
+
 ContentMetadata metadataForId(const std::string& text, const char* id) {
-    const std::regex objectPattern("\\{[^{}]*\\}");
-    for (std::sregex_iterator it(text.begin(), text.end(), objectPattern), end; it != end; ++it) {
-        const std::string record = (*it)[0].str();
+    for (const std::string& record : objectRecords(text)) {
         if (stringForKey(record, "id") != id) continue;
         ContentMetadata metadata;
         metadata.id = id;
@@ -107,9 +131,7 @@ ContentMetadata metadataForId(const std::string& text, const char* id) {
 }
 
 RunTypeMetadata runTypeMetadataForId(const std::string& text, const char* id) {
-    const std::regex objectPattern("\\{[^{}]*\\}");
-    for (std::sregex_iterator it(text.begin(), text.end(), objectPattern), end; it != end; ++it) {
-        const std::string record = (*it)[0].str();
+    for (const std::string& record : objectRecords(text)) {
         if (stringForKey(record, "id") != id) continue;
         return {id, stringForKey(record, "display"), stringForKey(record, "description"), stringForKey(record, "short_description"), stringForKey(record, "long_description"), stringForKey(record, "rules"), stringForKey(record, "icon_id")};
     }
@@ -166,6 +188,8 @@ std::uint32_t contentFingerprint(const ContentConfig& content) {
     for (int value : content.skullBossCurrencyBonus) add(static_cast<std::uint32_t>(value));
     add(content.ultimateEvolutionCatalogHash);
     add(content.dailyChallengeCatalogHash);
+    add(content.bountyObjectiveCatalogHash);
+    add(content.plagueMutationCatalogHash);
     add(content.supportModuleCatalogHash);
     add(content.skillEntityCatalogHash);
     add(static_cast<std::uint32_t>(content.maxAlliedUnits));
@@ -214,17 +238,33 @@ std::uint32_t contentFingerprint(const ContentConfig& content) {
     addMetadataToHash(content.allyMetadata, addString);
     addMetadataToHash(content.buildingMetadata, addString);
     add(content.skillCatalogHash);
-    for (const SkillDefinition& definition : content.skillDefinitions) {
+    for (std::size_t skillIndex = 0; skillIndex < content.skillDefinitions.size(); ++skillIndex) {
+        const SkillDefinition& definition = content.skillDefinitions[skillIndex];
         addString(definition.id); addString(definition.display); addString(definition.shortDescription); addString(definition.longDescription);
         addString(definition.iconId); addString(definition.effect); addString(definition.targetMode);
         add(static_cast<std::uint32_t>(definition.cooldownTicks)); add(static_cast<std::uint32_t>(definition.charges)); add(static_cast<std::uint32_t>(definition.durationTicks));
         addFloat(definition.range); addFloat(definition.radius); addFloat(definition.valueA); addFloat(definition.valueB);
         for (const std::string& tag : definition.tags) addString(tag);
+        if (content.skillMetadata) {
+            for (const std::string& group : content.skillMetadata->at(skillIndex).synergyGroups) addString(group);
+            for (const std::string& keyword : content.skillMetadata->at(skillIndex).searchKeywords) addString(keyword);
+            addString(content.skillMetadata->at(skillIndex).equippedPassiveId);
+        }
         for (const std::string& operation : definition.operations) addString(operation);
     }
     for (const SkillNodeDefinition& node : content.skillNodes) {
         addString(node.id); addString(node.skillId); addString(node.parentId); addString(node.branchId); addString(node.display); addString(node.description); addString(node.iconLayer);
-        add(static_cast<std::uint32_t>(node.tier)); add(static_cast<std::uint32_t>(node.maxRank)); add(node.cost); addFloat(node.cooldownScale); addFloat(node.radiusScale); addFloat(node.valueScale); add(static_cast<std::uint32_t>(node.chargesDelta));
+        add(static_cast<std::uint32_t>(node.tier)); add(static_cast<std::uint32_t>(node.maxRank)); add(node.cost); addFloat(node.cooldownScale); addFloat(node.durationScale); addFloat(node.radiusScale); addFloat(node.valueScale); add(static_cast<std::uint32_t>(node.chargesDelta));
+    }
+    for (const SkillReactionDefinition& reaction : content.skillReactions) {
+        addString(reaction.id); addString(reaction.effect); add(static_cast<std::uint32_t>(reaction.reactionId)); add(static_cast<std::uint32_t>(reaction.priority));
+        for (const std::string& state : reaction.requiredStates) addString(state);
+        add(0u);
+        for (const std::string& state : reaction.consumedStates) addString(state);
+        add(0u);
+        for (const std::string& state : reaction.preservedStates) addString(state);
+        add(0u);
+        add(static_cast<std::uint32_t>(reaction.internalCooldownTicks)); add(static_cast<std::uint32_t>(reaction.maxGenerationDepth)); addFloat(reaction.damageScale); addFloat(reaction.controlScale); addFloat(reaction.controlValue); addFloat(reaction.secondaryRadius); addFloat(reaction.secondaryDamageScale);
     }
     for (const RunTypeMetadata& entry : content.runTypeMetadata) {
         addString(entry.id); addString(entry.display); addString(entry.description); addString(entry.shortDescription); addString(entry.longDescription); addString(entry.rules); addString(entry.iconId);
@@ -427,6 +467,71 @@ bool loadContentConfig(const std::string& directory, ContentConfig& output, std:
     std::uint32_t dailyHash = 2166136261u;
     for (const unsigned char character : dailyChallenges) { dailyHash ^= character; dailyHash *= 16777619u; }
     parsed.dailyChallengeCatalogHash = dailyHash == 0 ? 1u : dailyHash;
+    std::string bountyObjectives;
+    if (!readFile(std::filesystem::path(directory) / "bounty_objectives.json", bountyObjectives, error)) return false;
+    parsed.bountyObjectives.clear();
+    std::set<int> bountyKinds;
+    for (const std::string& record : objectRecords(bountyObjectives)) {
+        BountyObjectiveDefinition objective;
+        objective.id = stringForKey(record, "id");
+        objective.display = stringForKey(record, "display");
+        objective.description = stringForKey(record, "description");
+        objective.kind = integerForKey(record, "kind", -1);
+        objective.target = integerForKey(record, "target", 1);
+        objective.weight = integerForKey(record, "weight", 1);
+        objective.event = stringForKey(record, "event");
+        objective.bossAllowed = integerForKey(record, "boss_allowed", 1) != 0;
+        objective.bossSubstituteKind = integerForKey(record, "boss_substitute_kind", -1);
+        if (objective.id.empty() || objective.display.empty() || objective.description.empty() || objective.event.empty() || objective.kind < 0 || objective.kind > 5 || objective.target <= 0 || objective.weight <= 0 || !bountyKinds.insert(objective.kind).second) {
+            if (error) *error = "bounty objective content is invalid or contains duplicate kinds";
+            return false;
+        }
+        parsed.bountyObjectives.push_back(objective);
+    }
+    if (parsed.bountyObjectives.size() < 6u) {
+        if (error) *error = "bounty objective content must define all six objective kinds";
+        return false;
+    }
+    for (const BountyObjectiveDefinition& objective : parsed.bountyObjectives) {
+        if (!objective.bossAllowed) {
+            const auto substitute = std::find_if(parsed.bountyObjectives.begin(), parsed.bountyObjectives.end(), [&](const BountyObjectiveDefinition& candidate) {
+                return candidate.kind == objective.bossSubstituteKind && candidate.bossAllowed;
+            });
+            if (substitute == parsed.bountyObjectives.end()) {
+                if (error) *error = "boss-unsafe bounty objective has no valid boss substitute";
+                return false;
+            }
+        }
+    }
+    std::uint32_t bountyHash = 2166136261u;
+    for (const unsigned char character : bountyObjectives) { bountyHash ^= character; bountyHash *= 16777619u; }
+    parsed.bountyObjectiveCatalogHash = bountyHash == 0 ? 1u : bountyHash;
+    std::string plagueMutations;
+    if (!readFile(std::filesystem::path(directory) / "plague_mutations.json", plagueMutations, error)) return false;
+    parsed.plagueMutations.clear();
+    std::set<int> mutationStrains;
+    for (const std::string& record : objectRecords(plagueMutations)) {
+        PlagueMutationDefinition mutation;
+        mutation.id = stringForKey(record, "id");
+        mutation.strain = integerForKey(record, "strain", 0);
+        mutation.damageScale = floatForKey(record, "damage_scale", 1.0f);
+        mutation.spreadRadius = floatForKey(record, "spread_radius", 92.0f);
+        mutation.hostileDamage = floatForKey(record, "hostile_damage", 0.0f);
+        mutation.biomassValue = integerForKey(record, "biomass_value", 1);
+        mutation.behavior = stringForKey(record, "behavior");
+        if (mutation.id.empty() || mutation.behavior.empty() || mutation.strain < 1 || mutation.strain > 4 || mutation.damageScale <= 0.0f || mutation.spreadRadius <= 0.0f || mutation.hostileDamage < 0.0f || mutation.biomassValue <= 0 || !mutationStrains.insert(mutation.strain).second) {
+            if (error) *error = "plague mutation content is invalid or contains duplicate strains";
+            return false;
+        }
+        parsed.plagueMutations.push_back(mutation);
+    }
+    if (parsed.plagueMutations.size() < 4u) {
+        if (error) *error = "plague mutation content must define all four strains";
+        return false;
+    }
+    std::uint32_t mutationHash = 2166136261u;
+    for (const unsigned char character : plagueMutations) { mutationHash ^= character; mutationHash *= 16777619u; }
+    parsed.plagueMutationCatalogHash = mutationHash == 0 ? 1u : mutationHash;
     std::string supportModules;
     if (!readFile(std::filesystem::path(directory) / "support_modules.json", supportModules, error)) return false;
     const char* supportIds[] = {"none", "credit_relay", "stasis_field", "repair_drones", "corrosion_amp"};
@@ -558,13 +663,15 @@ bool loadContentConfig(const std::string& directory, ContentConfig& output, std:
     if (!readFile(std::filesystem::path(directory) / "skills.json", skills, error)) return false;
     const std::array<const char*, static_cast<std::size_t>(SkillId::Count)> skillIds{{
         "gravity_well", "phase_mine", "vanguard_drop", "forward_barracks", "ruin_hex",
-        "rally_beacon", "sentry_fabricator", "cryo_field", "drone_swarm", "resonance_pulse"
+        "rally_beacon", "sentry_fabricator", "cryo_field", "drone_swarm", "resonance_pulse",
+        "arc_bolt", "chain_lightning", "temporal_anchor", "patient_zero", "scrap_cache",
+        "wanted", "alpha_beast", "mortar_barrage", "rift_gate", "guardian_ward", "loaded_dice", "blood_lance", "life_siphon", "hemorrhage_field", "blood_golem", "last_pulse", "treason_mark", "riot_whisper", "puppet_thread", "false_orders", "shared_agony", "thunderhead", "flash_flood", "thermal_surge", "eye_of_the_storm", "bulwark_wall", "trap_foundry", "accelerate", "delay", "rewind", "borrowed_time", "deadeye_shot", "harpoon", "exploit_weakness", "collector_drone", "vector_swarm", "mutation", "rupture_host", "quarantine", "mine_layer", "jury_rigged_turret", "strip_for_parts", "improvised_arsenal", "spotter_drone", "rail_cannon", "cluster_shell", "walking_barrage", "spatial_collapse", "banish", "phase_exchange", "event_horizon", "intercept", "challenge", "sanctuary", "judgment", "misfortune", "lucky_shot", "stack_deck", "double_nothing", "feed", "adaptation", "pack_call", "hunt_command"
     }};
-    const std::regex skillRecordPattern("\\{[^{}]*\\}");
+    const std::vector<std::string> skillRecords = objectRecords(skills);
+    parsed.skillMetadata = std::make_shared<std::array<SkillAuthoredMetadata, static_cast<std::size_t>(SkillId::Count)>>();
     for (std::size_t index = 0; index < skillIds.size(); ++index) {
         bool found = false;
-        for (std::sregex_iterator it(skills.begin(), skills.end(), skillRecordPattern), end; it != end; ++it) {
-            const std::string record = (*it)[0].str();
+        for (const std::string& record : skillRecords) {
             if (stringForKey(record, "id") != skillIds[index]) continue;
             SkillDefinition definition;
             definition.id = skillIds[index];
@@ -581,11 +688,21 @@ bool loadContentConfig(const std::string& directory, ContentConfig& output, std:
             definition.radius = floatForKey(record, "radius", 100.0f);
             definition.valueA = floatForKey(record, "value_a", 1.0f);
             definition.valueB = floatForKey(record, "value_b", 1.0f);
+            definition.healthCost = integerForKey(record, "health_cost", 0);
+            definition.resourceId = stringForKey(record, "resource_id");
+            definition.resourceCost = integerForKey(record, "resource_cost", 0);
+            definition.resourceRefund = integerForKey(record, "resource_refund", 0);
             definition.tags = stringsForKey(record, "tags");
             definition.operations = stringsForKey(record, "operations");
+            SkillAuthoredMetadata& metadata = parsed.skillMetadata->at(index);
+            metadata.synergyGroups = stringsForKey(record, "synergy_groups");
+            metadata.searchKeywords = stringsForKey(record, "search_keywords");
+            metadata.equippedPassiveId = stringForKey(record, "equipped_passive_id");
+            definition.authoredMetadataIndex = static_cast<std::uint8_t>(index);
             if (definition.display.empty() || definition.shortDescription.empty() || definition.longDescription.empty() || definition.iconId.empty() ||
                 definition.effect.empty() || definition.targetMode.empty() || definition.cooldownTicks <= 0 || definition.charges <= 0 || definition.durationTicks <= 0 ||
-                definition.range <= 0.0f || definition.radius <= 0.0f || definition.tags.empty()) {
+                definition.range <= 0.0f || definition.radius <= 0.0f || definition.healthCost < 0 || definition.resourceCost < 0 || definition.resourceRefund < 0 ||
+                (definition.resourceCost > 0 && definition.resourceId.empty()) || definition.tags.empty() || metadata.synergyGroups.empty()) {
                 if (error) *error = std::string("invalid skill definition: ") + skillIds[index];
                 return false;
             }
@@ -597,8 +714,7 @@ bool loadContentConfig(const std::string& directory, ContentConfig& output, std:
     }
     std::string skillTrees;
     if (!readFile(std::filesystem::path(directory) / "skill_trees.json", skillTrees, error)) return false;
-    for (std::sregex_iterator it(skillTrees.begin(), skillTrees.end(), skillRecordPattern), end; it != end; ++it) {
-        const std::string record = (*it)[0].str();
+    for (const std::string& record : objectRecords(skillTrees)) {
         SkillNodeDefinition node;
         node.id = stringForKey(record, "id");
         node.skillId = stringForKey(record, "skill_id");
@@ -611,11 +727,13 @@ bool loadContentConfig(const std::string& directory, ContentConfig& output, std:
         node.maxRank = integerForKey(record, "max_rank", 1);
         node.cost = static_cast<std::uint32_t>(std::max(1, integerForKey(record, "cost", 25)));
         node.cooldownScale = floatForKey(record, "cooldown_scale", 1.0f);
+        node.durationScale = floatForKey(record, "duration_scale", 1.0f);
         node.radiusScale = floatForKey(record, "radius_scale", 1.0f);
         node.valueScale = floatForKey(record, "value_scale", 1.0f);
+        node.basicDamageScale = floatForKey(record, "basic_damage_scale", 1.0f);
         node.chargesDelta = integerForKey(record, "charges_delta", 0);
         if (node.id.empty() || node.skillId.empty() || node.branchId.empty() || node.display.empty() || node.description.empty() || node.iconLayer.empty() ||
-            node.tier < 1 || node.maxRank < 1 || node.cooldownScale <= 0.0f || node.radiusScale <= 0.0f || node.valueScale <= 0.0f) {
+            node.tier < 1 || node.maxRank < 1 || node.cooldownScale <= 0.0f || node.durationScale <= 0.0f || node.radiusScale <= 0.0f || node.valueScale <= 0.0f || node.basicDamageScale <= 0.0f) {
             if (error) *error = "invalid skill tree node";
             return false;
         }
@@ -644,20 +762,81 @@ bool loadContentConfig(const std::string& directory, ContentConfig& output, std:
         }
         if (genericNodes == 0 || branches.size() < 2u || highestTier < 4) { if (error) *error = std::string("skill tree needs generic, two branches, and capstones: ") + skillId; return false; }
     }
+    // The redesign deliberately uses authored tags instead of hard-coded
+    // class membership. Keep the class identity contract at the content
+    // boundary: every core or expansion group must have enough skills to form
+    // a five-slot identity, including when bridge skills are shared.
+    const std::array<const char*, 15> requiredSkillGroups{{
+        "arcanist", "legion", "bloodbinder", "usurper", "architect", "stormcaller",
+        "chronomancer", "bounty_hunter", "plaguewright", "salvager", "beastmaster",
+        "artillerist", "void_shepherd", "oathkeeper", "fatebinder"
+    }};
+    for (const char* group : requiredSkillGroups) {
+        int authoredSkills = 0;
+        for (const SkillAuthoredMetadata& metadata : *parsed.skillMetadata) {
+            if (std::find(metadata.synergyGroups.begin(), metadata.synergyGroups.end(), group) != metadata.synergyGroups.end()) ++authoredSkills;
+        }
+        if (authoredSkills < static_cast<int>(SkillSlotCount)) {
+            if (error) *error = std::string("synergy group needs at least five authored skills: ") + group;
+            return false;
+        }
+    }
+    std::string reactionContent;
+    if (!readFile(std::filesystem::path(directory) / "skill_reactions.json", reactionContent, error)) return false;
+    std::set<int> reactionIds;
+    for (const std::string& record : objectRecords(reactionContent)) {
+        SkillReactionDefinition reaction;
+        reaction.id = stringForKey(record, "id");
+        reaction.effect = stringForKey(record, "effect");
+        if (reaction.effect.empty()) reaction.effect = "damage";
+        reaction.reactionId = integerForKey(record, "reaction_id", 0);
+        reaction.priority = integerForKey(record, "priority", 0);
+        reaction.requiredStates = stringsForKey(record, "required_states");
+        reaction.consumedStates = stringsForKey(record, "consumed_states");
+        reaction.preservedStates = stringsForKey(record, "preserved_states");
+        reaction.internalCooldownTicks = integerForKey(record, "internal_cooldown_ticks", 6);
+        reaction.maxGenerationDepth = integerForKey(record, "max_generation_depth", 0);
+        reaction.damageScale = floatForKey(record, "damage_scale", 1.0f);
+        reaction.controlScale = floatForKey(record, "control_scale", 1.0f);
+        reaction.controlValue = floatForKey(record, "control_value", 0.0f);
+        reaction.secondaryRadius = floatForKey(record, "secondary_radius", 0.0f);
+        reaction.secondaryDamageScale = floatForKey(record, "secondary_damage_scale", 0.0f);
+        if (reaction.id.empty() || reaction.reactionId <= 0 || reaction.priority < 0 || reaction.requiredStates.empty() || reaction.internalCooldownTicks < 0 || reaction.maxGenerationDepth < 0 || reaction.damageScale <= 0.0f || reaction.controlScale <= 0.0f || reaction.controlValue < 0.0f || reaction.secondaryRadius < 0.0f || reaction.secondaryDamageScale < 0.0f || !reactionIds.insert(reaction.reactionId).second) {
+            if (error) *error = "invalid or duplicate skill reaction definition";
+            return false;
+        }
+        parsed.skillReactions.push_back(reaction);
+    }
+    if (parsed.skillReactions.empty()) { if (error) *error = "skill reaction content is empty"; return false; }
+    std::sort(parsed.skillReactions.begin(), parsed.skillReactions.end(), [](const SkillReactionDefinition& left, const SkillReactionDefinition& right) {
+        return left.reactionId < right.reactionId;
+    });
     std::uint32_t skillHash = 2166136261u;
     const auto addSkillString = [&skillHash](const std::string& value) { for (const unsigned char character : value) { skillHash ^= character; skillHash *= 16777619u; } skillHash ^= 0u; skillHash *= 16777619u; };
     const auto addSkillInt = [&skillHash](int value) { skillHash ^= static_cast<std::uint32_t>(value); skillHash *= 16777619u; };
-    for (const SkillDefinition& definition : parsed.skillDefinitions) {
+    for (std::size_t skillIndex = 0; skillIndex < parsed.skillDefinitions.size(); ++skillIndex) {
+        const SkillDefinition& definition = parsed.skillDefinitions[skillIndex];
         addSkillString(definition.id); addSkillString(definition.display); addSkillString(definition.shortDescription); addSkillString(definition.longDescription);
         addSkillString(definition.iconId); addSkillString(definition.effect); addSkillString(definition.targetMode);
         addSkillInt(definition.cooldownTicks); addSkillInt(definition.charges); addSkillInt(definition.durationTicks);
-        addSkillString(std::to_string(definition.range)); addSkillString(std::to_string(definition.radius)); addSkillString(std::to_string(definition.valueA)); addSkillString(std::to_string(definition.valueB));
+        addSkillString(std::to_string(definition.range)); addSkillString(std::to_string(definition.radius)); addSkillString(std::to_string(definition.valueA)); addSkillString(std::to_string(definition.valueB)); addSkillInt(definition.healthCost);
+        addSkillString(definition.resourceId); addSkillInt(definition.resourceCost); addSkillInt(definition.resourceRefund);
         for (const std::string& tag : definition.tags) addSkillString(tag);
+        for (const std::string& group : parsed.skillMetadata->at(skillIndex).synergyGroups) addSkillString(group);
+        for (const std::string& keyword : parsed.skillMetadata->at(skillIndex).searchKeywords) addSkillString(keyword);
         for (const std::string& operation : definition.operations) addSkillString(operation);
+        addSkillString(parsed.skillMetadata->at(skillIndex).equippedPassiveId);
     }
     for (const SkillNodeDefinition& node : parsed.skillNodes) {
         addSkillString(node.id); addSkillString(node.skillId); addSkillString(node.parentId); addSkillString(node.branchId); addSkillString(node.display); addSkillString(node.description); addSkillString(node.iconLayer);
-        addSkillInt(node.tier); addSkillInt(node.maxRank); addSkillInt(static_cast<int>(node.cost)); addSkillString(std::to_string(node.cooldownScale)); addSkillString(std::to_string(node.radiusScale)); addSkillString(std::to_string(node.valueScale)); addSkillInt(node.chargesDelta);
+        addSkillInt(node.tier); addSkillInt(node.maxRank); addSkillInt(static_cast<int>(node.cost)); addSkillString(std::to_string(node.cooldownScale)); addSkillString(std::to_string(node.durationScale)); addSkillString(std::to_string(node.radiusScale)); addSkillString(std::to_string(node.valueScale)); addSkillString(std::to_string(node.basicDamageScale)); addSkillInt(node.chargesDelta);
+    }
+    for (const SkillReactionDefinition& reaction : parsed.skillReactions) {
+        addSkillString(reaction.id); addSkillString(reaction.effect); addSkillInt(reaction.reactionId); addSkillInt(reaction.priority);
+        for (const std::string& state : reaction.requiredStates) addSkillString(state);
+        for (const std::string& state : reaction.consumedStates) addSkillString(state);
+        for (const std::string& state : reaction.preservedStates) addSkillString(state);
+        addSkillInt(reaction.internalCooldownTicks); addSkillInt(reaction.maxGenerationDepth); addSkillString(std::to_string(reaction.damageScale)); addSkillString(std::to_string(reaction.controlScale)); addSkillString(std::to_string(reaction.controlValue)); addSkillString(std::to_string(reaction.secondaryRadius)); addSkillString(std::to_string(reaction.secondaryDamageScale));
     }
     parsed.skillCatalogHash = skillHash == 0 ? 1u : skillHash;
     output = parsed;

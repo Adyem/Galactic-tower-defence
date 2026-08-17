@@ -10,7 +10,7 @@
 
 namespace ta {
 
-enum class ReplayAction : std::uint8_t { Upgrade = 1, Ultimate = 2, Reroll = 3, SkillCast = 4 };
+enum class ReplayAction : std::uint8_t { Upgrade = 1, Ultimate = 2, Reroll = 3, SkillCast = 4, OathReward = 5 };
 
 struct ReplayEvent {
     std::uint32_t tick = 0;
@@ -87,7 +87,13 @@ struct ProfileData {
     std::uint8_t equippedChassis = 0;
     std::uint8_t equippedWeapon = 0;
     std::uint8_t equippedUltimate = 0;
-    std::uint32_t unlockedSkillsMask = 0x1Fu;
+    std::uint64_t unlockedSkillsMask = 0x1Fu;
+    std::uint64_t unlockedSkillsMaskHigh = 0;
+    std::uint64_t favoriteSkillsMask = 0;
+    std::uint64_t favoriteSkillsMaskHigh = 0;
+    // Skill ids in unlock order, oldest first. Older profiles may leave this
+    // empty; catalog sorting then falls back deterministically to the id.
+    std::vector<std::uint8_t> skillUnlockOrder;
     std::vector<std::string> unlockedSkillNodes;
     SkillLoadout skillLoadout{};
     std::array<SkillLoadout, 3> skillPresets{};
@@ -123,6 +129,9 @@ bool isUltimateModuleUnlocked(const ProfileData& profile, UltimateModule module)
 bool unlockUltimateModule(ProfileData& profile, UltimateModule module, const ContentConfig& content);
 bool equipUltimateModule(ProfileData& profile, UltimateModule module);
 bool isSkillUnlocked(const ProfileData& profile, SkillId skill);
+bool isSkillFavorite(const ProfileData& profile, SkillId skill);
+bool setSkillFavorite(ProfileData& profile, SkillId skill, bool favorite);
+bool toggleSkillFavorite(ProfileData& profile, SkillId skill);
 bool unlockSkill(ProfileData& profile, SkillId skill, const ContentConfig& content);
 std::uint32_t skillNodeCost(const ProfileData& profile, const SkillNodeDefinition& node);
 bool purchaseSkillNode(ProfileData& profile, const SkillNodeDefinition& node, const ContentConfig& content);

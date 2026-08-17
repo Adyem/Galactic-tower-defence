@@ -18,6 +18,7 @@
 #include <iostream>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace {
@@ -28,6 +29,33 @@ using namespace ta::ui;
 using FrontendScreen = ta::app::FrontendScreen;
 
 enum class WorkshopPurchase { None, TowerCore, WeaponModule, SupportModule, UltimateEvolution, UltimateModule, SkillNode, SkillUnlock };
+
+enum class SkillBrowserSortMode { Relevance, RecommendedSynergy, Name, RecentlyUnlocked, Cooldown, WorkshopInvestment };
+SkillBrowserSortMode activeSkillBrowserSort = SkillBrowserSortMode::Relevance;
+int activeSkillBrowserSelection = -1;
+
+const char* skillBrowserSortLabel(SkillBrowserSortMode mode) {
+    switch (mode) {
+        case SkillBrowserSortMode::Relevance: return "RELEVANCE";
+        case SkillBrowserSortMode::RecommendedSynergy: return "RECOMMENDED SYNERGY";
+        case SkillBrowserSortMode::Name: return "NAME";
+        case SkillBrowserSortMode::RecentlyUnlocked: return "RECENTLY UNLOCKED";
+        case SkillBrowserSortMode::Cooldown: return "COOLDOWN";
+        case SkillBrowserSortMode::WorkshopInvestment: return "WORKSHOP INVESTMENT";
+    }
+    return "RELEVANCE";
+}
+
+ta::SkillTargetMode skillBrowserTargetMode(const std::string& mode) {
+    if (mode == "world_point") return ta::SkillTargetMode::WorldPoint;
+    if (mode == "area") return ta::SkillTargetMode::Area;
+    if (mode == "enemy") return ta::SkillTargetMode::Enemy;
+    if (mode == "ally") return ta::SkillTargetMode::Ally;
+    if (mode == "placement") return ta::SkillTargetMode::Placement;
+    if (mode == "lane") return ta::SkillTargetMode::Lane;
+    if (mode == "direction") return ta::SkillTargetMode::Direction;
+    return ta::SkillTargetMode::None;
+}
 
 ta::UltimateEvolution evolutionForUltimate(ta::Ultimate ultimate, int slot) {
     const int base = static_cast<int>(ultimate) * 3 + 1;
@@ -483,9 +511,101 @@ Color skillAccent(ta::SkillId skill) {
         case ta::SkillId::CryoField: return neo::Ice;
         case ta::SkillId::DroneSwarm: return neo::Cyan;
         case ta::SkillId::ResonancePulse: return neo::Violet;
+        case ta::SkillId::ArcBolt: return neo::Cyan;
+        case ta::SkillId::ChainLightning: return neo::Amber;
+        case ta::SkillId::TemporalAnchor: return neo::Blue;
+        case ta::SkillId::PatientZero: return neo::Magenta;
+        case ta::SkillId::ScrapCache: return neo::Amber;
+        case ta::SkillId::Wanted: return neo::Red;
+        case ta::SkillId::AlphaBeast: return neo::Mint;
+        case ta::SkillId::MortarBarrage: return neo::Amber;
+        case ta::SkillId::RiftGate: return neo::Blue;
+        case ta::SkillId::GuardianWard: return neo::Mint;
+        case ta::SkillId::LoadedDice: return neo::Violet;
+        case ta::SkillId::BloodLance: return neo::Red;
+        case ta::SkillId::LifeSiphon: return neo::Magenta;
+        case ta::SkillId::HemorrhageField: return neo::Red;
+        case ta::SkillId::BloodGolem: return neo::Magenta;
+        case ta::SkillId::LastPulse: return neo::Red;
+        case ta::SkillId::TreasonMark: return neo::Red;
+        case ta::SkillId::RiotWhisper: return neo::Amber;
+        case ta::SkillId::PuppetThread: return neo::Violet;
+        case ta::SkillId::FalseOrders: return neo::Amber;
+        case ta::SkillId::SharedAgony: return neo::Red;
+        case ta::SkillId::Feed: return neo::Amber;
+        case ta::SkillId::Adaptation: return neo::Mint;
+        case ta::SkillId::PackCall: return neo::Cyan;
+        case ta::SkillId::HuntCommand: return neo::Red;
+        case ta::SkillId::Thunderhead: return neo::Blue;
+        case ta::SkillId::FlashFlood: return neo::Cyan;
+        case ta::SkillId::ThermalSurge: return neo::Red;
+        case ta::SkillId::EyeOfTheStorm: return neo::Violet;
+        case ta::SkillId::BulwarkWall: return neo::Mint;
+        case ta::SkillId::TrapFoundry: return neo::Amber;
+        case ta::SkillId::Accelerate: return neo::Blue;
+        case ta::SkillId::Delay: return neo::Violet;
+        case ta::SkillId::Rewind: return neo::Blue;
+        case ta::SkillId::BorrowedTime: return neo::Magenta;
+        case ta::SkillId::DeadeyeShot: return neo::Red;
+        case ta::SkillId::Harpoon: return neo::Amber;
+        case ta::SkillId::ExploitWeakness: return neo::Violet;
+        case ta::SkillId::CollectorDrone: return neo::Cyan;
+        case ta::SkillId::VectorSwarm: return neo::Magenta;
+        case ta::SkillId::Mutation: return neo::Violet;
+        case ta::SkillId::RuptureHost: return neo::Red;
+        case ta::SkillId::Quarantine: return neo::Magenta;
+        case ta::SkillId::MineLayer: return neo::Amber;
+        case ta::SkillId::JuryRiggedTurret: return neo::Cyan;
+        case ta::SkillId::StripForParts: return neo::Amber;
+        case ta::SkillId::ImprovisedArsenal: return neo::Red;
+        case ta::SkillId::SpotterDrone: return neo::Cyan;
+        case ta::SkillId::RailCannon: return neo::Amber;
+        case ta::SkillId::ClusterShell: return neo::Red;
+        case ta::SkillId::WalkingBarrage: return neo::Amber;
+        case ta::SkillId::SpatialCollapse: return neo::Blue;
+        case ta::SkillId::Banish: return neo::Violet;
+        case ta::SkillId::PhaseExchange: return neo::Blue;
+        case ta::SkillId::EventHorizon: return neo::Violet;
+        case ta::SkillId::Intercept: return neo::Mint;
+        case ta::SkillId::Challenge: return neo::Amber;
+        case ta::SkillId::Sanctuary: return neo::Mint;
+        case ta::SkillId::Judgment: return neo::Red;
+        case ta::SkillId::Misfortune: return neo::Magenta;
+        case ta::SkillId::LuckyShot: return neo::Amber;
+        case ta::SkillId::StackDeck: return neo::Violet;
+        case ta::SkillId::DoubleNothing: return neo::Magenta;
         case ta::SkillId::Count: break;
     }
     return neo::Text;
+}
+
+Color skillGroupAccent(const std::string& group) {
+    if (group == "arcanist") return neo::Violet;
+    if (group == "legion") return neo::Amber;
+    if (group == "bloodbinder") return neo::Red;
+    if (group == "usurper") return neo::Magenta;
+    if (group == "architect") return neo::Mint;
+    if (group == "stormcaller") return neo::Blue;
+    if (group == "chronomancer") return neo::Violet;
+    if (group == "bounty_hunter") return neo::Amber;
+    if (group == "plaguewright") return neo::Magenta;
+    if (group == "salvager") return neo::Cyan;
+    if (group == "beastmaster") return neo::Mint;
+    if (group == "artillerist") return neo::Amber;
+    if (group == "void_shepherd") return neo::Blue;
+    if (group == "oathkeeper") return neo::Mint;
+    if (group == "fatebinder") return neo::Violet;
+    return neo::Cyan;
+}
+
+void drawSkillGroupIcon(SDL_Renderer* renderer, const std::string& group, int x, int y) {
+    const Color color = skillGroupAccent(group);
+    if (group == "legion" || group == "beastmaster") filledDiamond(renderer, x, y, 6, color);
+    else if (group == "bloodbinder" || group == "plaguewright") { circle(renderer, x, y, 6, color); cross(renderer, x, y, 3, neo::Text, 1); }
+    else if (group == "architect" || group == "oathkeeper") hexagon(renderer, x, y, 7, color, 2);
+    else if (group == "stormcaller" || group == "artillerist") { line(renderer, x - 5, y + 4, x, y - 5, color, 2); line(renderer, x, y - 5, x + 5, y + 4, color, 2); }
+    else if (group == "usurper" || group == "bounty_hunter") { circle(renderer, x, y, 6, color); cross(renderer, x, y, 3, neo::Text, 1); }
+    else { brokenRing(renderer, x, y, 6, color, 1, 4); }
 }
 
 void drawSkillVisualEvent(SDL_Renderer* renderer, const ta::SkillVisualEvent& event) {
@@ -527,6 +647,7 @@ void drawSkillVisualEvent(SDL_Renderer* renderer, const ta::SkillVisualEvent& ev
             plusGlyph(renderer, x, y, std::max(8, pulse / 4), neo::Text, 2);
             for (int index = 0; index < 4; ++index) line(renderer, x, y - pulse / 2, x, y - pulse / 2 - 8, color, 1);
             if (event.branchId == "war_cry") chevrons(renderer, x, y, 22, neo::Amber, 3);
+            if (event.branchId == "field_revive") { plusGlyph(renderer, x, y, std::max(10, pulse / 3), neo::Text, 2); chevrons(renderer, x, y + 18, 18, neo::Mint, 2); }
             break;
         case ta::SkillId::SentryFabricator:
             filledHexagon(renderer, x, y, std::min(25, pulse / 2), color);
@@ -545,11 +666,266 @@ void drawSkillVisualEvent(SDL_Renderer* renderer, const ta::SkillVisualEvent& ev
             brokenRing(renderer, x, y, pulse, color, 1, 4);
             for (int index = 0; index < 3; ++index) { circle(renderer, x + (index - 1) * 14, y + (index % 2) * 10 - 5, 5, color); line(renderer, x + (index - 1) * 14 - 7, y + (index % 2) * 10 - 5, x + (index - 1) * 14 + 7, y + (index % 2) * 10 - 5, color, 1); }
             if (event.branchId == "hunter") cross(renderer, x, y, 20, neo::Amber, 1);
+            if (event.branchId == "predator_lock") { cross(renderer, x, y, 22, neo::Amber, 2); brokenRing(renderer, x, y, pulse + 8, neo::Red, 1, 4); }
+            if (event.branchId == "signal_jam") { brokenRing(renderer, x, y, pulse + 8, neo::Red, 2, 8); line(renderer, x - 14, y - 14, x + 14, y + 14, neo::Text, 2); }
             break;
         case ta::SkillId::ResonancePulse:
             brokenRing(renderer, x, y, pulse, color, 2, 4);
             brokenRing(renderer, x, y, std::max(8, pulse - 18), neo::Cyan, 1, 4);
             line(renderer, x - 18, y, x - 9, y - 8, color, 2); line(renderer, x - 9, y - 8, x, y + 8, color, 2); line(renderer, x, y + 8, x + 9, y - 8, color, 2); line(renderer, x + 9, y - 8, x + 18, y, color, 2);
+            if (event.branchId == "resonant_break") { ring(renderer, x, y, pulse + 12, neo::Amber, 2); cross(renderer, x, y, 16, neo::Text, 1); }
+            break;
+        case ta::SkillId::ArcBolt:
+            line(renderer, x - pulse, y + pulse / 3, x - pulse / 3, y, color, 2);
+            line(renderer, x - pulse / 3, y, x + pulse, y - pulse / 3, color, 2);
+            break;
+        case ta::SkillId::ChainLightning:
+            brokenRing(renderer, x, y, pulse, color, 2, 3);
+            for (int index = -1; index <= 1; ++index) line(renderer, x + index * 10, y - 12, x + index * 14, y + 12, color, 2);
+            break;
+        case ta::SkillId::TemporalAnchor:
+            hexagon(renderer, x, y, pulse, color, 2);
+            cross(renderer, x, y, std::max(8, pulse / 2), neo::Text, 1);
+            break;
+        case ta::SkillId::PatientZero:
+            circle(renderer, x, y, std::max(10, pulse / 2), color);
+            for (int index = 0; index < 4; ++index) line(renderer, x, y, x + (index - 2) * 14, y + (index % 2 == 0 ? -16 : 16), color, 1);
+            break;
+        case ta::SkillId::ScrapCache:
+            filledHexagon(renderer, x, y, std::min(25, pulse / 2), color);
+            line(renderer, x - 12, y - 4, x + 12, y - 4, neo::Text, 2);
+            line(renderer, x - 8, y + 6, x + 8, y + 6, neo::Text, 2);
+            break;
+        case ta::SkillId::Wanted:
+            circle(renderer, x, y, std::max(12, pulse / 2), color);
+            cross(renderer, x, y, std::max(8, pulse / 3), neo::Text, 2);
+            break;
+        case ta::SkillId::AlphaBeast:
+            filledDiamond(renderer, x, y, std::min(24, pulse / 2), color);
+            circle(renderer, x - 10, y - 10, 4, neo::Text);
+            circle(renderer, x + 10, y - 10, 4, neo::Text);
+            break;
+        case ta::SkillId::MortarBarrage:
+            line(renderer, x - pulse / 2, y + pulse / 2, x, y, color, 3);
+            filledHexagon(renderer, x, y, std::min(18, pulse / 3), neo::Amber);
+            break;
+        case ta::SkillId::RiftGate:
+            brokenRing(renderer, x, y, pulse, color, 2, 5);
+            line(renderer, x - 16, y - 16, x + 16, y + 16, color, 2);
+            break;
+        case ta::SkillId::GuardianWard:
+            hexagon(renderer, x, y, std::max(12, pulse / 2), color, 2);
+            plusGlyph(renderer, x, y, std::max(7, pulse / 4), neo::Text, 2);
+            break;
+        case ta::SkillId::LoadedDice:
+            chamferOutline(renderer, x - 18, y - 18, 36, 36, color, 6, 2);
+            for (int index = 0; index < 3; ++index) circle(renderer, x - 8 + index * 8, y, 3, color);
+            break;
+        case ta::SkillId::BloodLance:
+            line(renderer, x - pulse, y + pulse / 2, x + pulse, y - pulse / 2, color, 3);
+            circle(renderer, x, y, std::max(8, pulse / 4), neo::Text);
+            break;
+        case ta::SkillId::HemorrhageField:
+            brokenRing(renderer, x, y, std::max(10, pulse / 2), color, 2, 5);
+            break;
+        case ta::SkillId::BloodGolem:
+            filledDiamond(renderer, x, y, std::max(10, pulse / 2), color);
+            break;
+        case ta::SkillId::LastPulse:
+            circle(renderer, x, y, std::max(10, pulse / 2), color);
+            cross(renderer, x, y, std::max(6, pulse / 3), neo::Text, 2);
+            break;
+        case ta::SkillId::LifeSiphon:
+            circle(renderer, x, y, std::max(10, pulse / 2), color);
+            for (int index = 0; index < 4; ++index) line(renderer, x, y, x + (index - 2) * 15, y + (index % 2 == 0 ? -15 : 15), color, 2);
+            break;
+        case ta::SkillId::TreasonMark:
+            circle(renderer, x, y, std::max(12, pulse / 2), color);
+            cross(renderer, x, y, std::max(7, pulse / 3), neo::Text, 2);
+            break;
+        case ta::SkillId::PuppetThread:
+            circle(renderer, x, y, std::max(12, pulse / 2), color);
+            line(renderer, x - 10, y - 10, x + 10, y + 10, neo::Text, 2);
+            break;
+        case ta::SkillId::FalseOrders:
+            brokenRing(renderer, x, y, std::max(10, pulse / 2), color, 2, 4);
+            break;
+        case ta::SkillId::SharedAgony:
+            circle(renderer, x - 7, y, std::max(6, pulse / 3), color);
+            circle(renderer, x + 7, y, std::max(6, pulse / 3), color);
+            line(renderer, x - 7, y, x + 7, y, color, 2);
+            break;
+        case ta::SkillId::Feed:
+            circle(renderer, x, y, std::max(8, pulse / 2), color);
+            line(renderer, x - 8, y - 5, x + 8, y + 5, neo::Text, 2);
+            break;
+        case ta::SkillId::Adaptation:
+            filledDiamond(renderer, x, y, std::max(9, pulse / 2), color);
+            circle(renderer, x, y, std::max(4, pulse / 4), neo::Text);
+            break;
+        case ta::SkillId::PackCall:
+            circle(renderer, x - 8, y, std::max(5, pulse / 3), color);
+            circle(renderer, x + 8, y, std::max(5, pulse / 3), color);
+            circle(renderer, x, y - 8, std::max(5, pulse / 3), color);
+            break;
+        case ta::SkillId::HuntCommand:
+            circle(renderer, x, y, std::max(10, pulse / 2), color);
+            cross(renderer, x, y, std::max(6, pulse / 3), neo::Text, 2);
+            break;
+        case ta::SkillId::RiotWhisper:
+            brokenRing(renderer, x, y, pulse, color, 2, 4);
+            for (int index = 0; index < 3; ++index) line(renderer, x - 18 + index * 18, y - 12, x + 8 - index * 8, y + 12, color, 2);
+            break;
+        case ta::SkillId::Thunderhead:
+            brokenRing(renderer, x, y, pulse, color, 2, 5);
+            for (int index = -1; index <= 1; ++index) line(renderer, x + index * 12, y - 10, x + index * 12 - 7, y + 10, color, 2);
+            break;
+        case ta::SkillId::FlashFlood:
+            line(renderer, x - pulse, y - 10, x + pulse, y - 10, color, 2);
+            line(renderer, x - pulse, y, x + pulse, y, color, 2);
+            line(renderer, x - pulse, y + 10, x + pulse, y + 10, color, 2);
+            break;
+        case ta::SkillId::ThermalSurge:
+            brokenRing(renderer, x, y, pulse, color, 2, 6);
+            line(renderer, x - 8, y + 10, x, y - 12, color, 2);
+            line(renderer, x, y - 12, x + 8, y + 10, color, 2);
+            break;
+        case ta::SkillId::EyeOfTheStorm:
+            brokenRing(renderer, x, y, pulse, color, 2, 4);
+            circle(renderer, x, y, std::max(7, pulse / 3), color);
+            break;
+        case ta::SkillId::BulwarkWall:
+            rect(renderer, x - pulse, y - 8, pulse * 2, 16, color);
+            for (int index = -1; index <= 1; ++index) line(renderer, x + index * 12, y - 8, x + index * 12, y + 8, neo::Text, 1);
+            break;
+        case ta::SkillId::TrapFoundry:
+            filledHexagon(renderer, x, y, std::min(24, pulse / 2), color);
+            cross(renderer, x, y, std::max(7, pulse / 3), neo::Text, 1);
+            if (event.branchId == "linked_prime") {
+                brokenRing(renderer, x, y, pulse + 10, neo::Cyan, 2, 4);
+                chevrons(renderer, x, y, std::max(18, pulse / 2), neo::Cyan, 2);
+            }
+            break;
+        case ta::SkillId::Accelerate:
+            circle(renderer, x, y, pulse, color);
+            for (int index = 0; index < 3; ++index) line(renderer, x - 12 + index * 10, y - 10, x - 4 + index * 10, y + 10, color, 2);
+            break;
+        case ta::SkillId::Delay:
+            brokenRing(renderer, x, y, pulse, color, 2, 6);
+            line(renderer, x, y, x, y - pulse / 2, color, 2);
+            line(renderer, x, y, x + pulse / 3, y, color, 2);
+            break;
+        case ta::SkillId::Rewind:
+            line(renderer, x + pulse, y, x - pulse, y, color, 2);
+            line(renderer, x - pulse, y, x - pulse / 2, y - 10, color, 2);
+            line(renderer, x - pulse, y, x - pulse / 2, y + 10, color, 2);
+            break;
+        case ta::SkillId::BorrowedTime:
+            circle(renderer, x, y, pulse, color);
+            cross(renderer, x, y, std::max(7, pulse / 3), neo::Text, 2);
+            break;
+        case ta::SkillId::DeadeyeShot:
+            line(renderer, x - pulse, y + pulse / 3, x + pulse, y - pulse / 3, color, 3);
+            cross(renderer, x, y, std::max(8, pulse / 3), neo::Text, 1);
+            break;
+        case ta::SkillId::Harpoon:
+            line(renderer, x - pulse, y, x + pulse, y, color, 3);
+            line(renderer, x + pulse - 8, y - 7, x + pulse, y, color, 2);
+            line(renderer, x + pulse - 8, y + 7, x + pulse, y, color, 2);
+            break;
+        case ta::SkillId::ExploitWeakness:
+            circle(renderer, x, y, std::max(12, pulse / 2), color);
+            cross(renderer, x, y, std::max(8, pulse / 3), neo::Text, 2);
+            break;
+        case ta::SkillId::CollectorDrone:
+            circle(renderer, x, y, std::max(10, pulse / 3), color);
+            line(renderer, x - 16, y, x + 16, y, color, 2);
+            line(renderer, x, y - 16, x, y + 16, color, 2);
+            break;
+        case ta::SkillId::VectorSwarm:
+            brokenRing(renderer, x, y, pulse, color, 1, 5);
+            for (int index = 0; index < 4; ++index) circle(renderer, x + (index - 2) * 12, y + ((index % 2) * 12 - 6), 4, color);
+            break;
+        case ta::SkillId::Mutation:
+            circle(renderer, x, y, std::max(10, pulse / 2), color);
+            for (int index = 0; index < 4; ++index) line(renderer, x, y, x + (index - 2) * 12, y + (index % 2 == 0 ? -14 : 14), color, 2);
+            break;
+        case ta::SkillId::RuptureHost:
+            circle(renderer, x, y, std::max(8, pulse / 3), color);
+            brokenRing(renderer, x, y, pulse, color, 2, 6);
+            break;
+        case ta::SkillId::Quarantine:
+            brokenRing(renderer, x, y, pulse, color, 3, 8);
+            hexagon(renderer, x, y, std::max(8, pulse / 3), color, 1);
+            break;
+        case ta::SkillId::MineLayer:
+            filledHexagon(renderer, x, y, std::min(24, pulse / 2), color);
+            cross(renderer, x, y, std::max(7, pulse / 3), neo::Text, 1);
+            break;
+        case ta::SkillId::JuryRiggedTurret:
+            filledHexagon(renderer, x, y, std::min(24, pulse / 2), color);
+            line(renderer, x, y, x + 18, y - 10, neo::Text, 2);
+            break;
+        case ta::SkillId::StripForParts:
+            line(renderer, x - pulse / 2, y - pulse / 2, x + pulse / 2, y + pulse / 2, color, 3);
+            line(renderer, x + pulse / 2, y - pulse / 2, x - pulse / 2, y + pulse / 2, color, 2);
+            break;
+        case ta::SkillId::ImprovisedArsenal:
+            brokenRing(renderer, x, y, pulse, color, 2, 6);
+            filledHexagon(renderer, x, y, std::min(18, pulse / 3), neo::Amber);
+            break;
+        case ta::SkillId::SpotterDrone:
+            circle(renderer, x, y, std::max(10, pulse / 3), color);
+            cross(renderer, x, y, std::max(8, pulse / 2), color, 1);
+            break;
+        case ta::SkillId::RailCannon:
+            line(renderer, x - pulse, y, x + pulse, y, color, 4);
+            line(renderer, x - pulse, y - 6, x + pulse, y - 6, neo::Text, 1);
+            break;
+        case ta::SkillId::ClusterShell:
+            brokenRing(renderer, x, y, pulse, color, 2, 6);
+            for (int index = 0; index < 3; ++index) circle(renderer, x + (index - 1) * 16, y, 5, neo::Amber);
+            break;
+        case ta::SkillId::WalkingBarrage:
+            for (int index = -1; index <= 1; ++index) { line(renderer, x + index * 18, y - pulse / 2, x + index * 18, y + pulse / 2, color, 2); circle(renderer, x + index * 18, y, 6, neo::Amber); }
+            break;
+        case ta::SkillId::SpatialCollapse:
+            brokenRing(renderer, x, y, pulse, color, 2, 6);
+            for (int index = 0; index < 4; ++index) line(renderer, x + (index - 2) * 16, y + 16, x, y, color, 1);
+            break;
+        case ta::SkillId::Banish:
+            hexagon(renderer, x, y, std::max(12, pulse / 2), color, 2);
+            line(renderer, x - 12, y - 12, x + 12, y + 12, neo::Text, 2);
+            break;
+        case ta::SkillId::PhaseExchange:
+            line(renderer, x - 18, y - 12, x + 18, y + 12, color, 2); line(renderer, x + 18, y - 12, x - 18, y + 12, color, 2);
+            break;
+        case ta::SkillId::EventHorizon:
+            brokenRing(renderer, x, y, pulse, color, 3, 8); circle(renderer, x, y, std::max(7, pulse / 3), neo::Text);
+            break;
+        case ta::SkillId::Intercept:
+            hexagon(renderer, x, y, std::max(12, pulse / 2), color, 2); line(renderer, x, y - 12, x, y + 12, neo::Text, 2);
+            break;
+        case ta::SkillId::Challenge:
+            circle(renderer, x, y, std::max(12, pulse / 2), color); cross(renderer, x, y, std::max(7, pulse / 3), neo::Text, 2);
+            break;
+        case ta::SkillId::Sanctuary:
+            hexagon(renderer, x, y, pulse, color, 2); plusGlyph(renderer, x, y, std::max(7, pulse / 3), neo::Text, 2);
+            break;
+        case ta::SkillId::Judgment:
+            line(renderer, x - pulse / 2, y - pulse / 2, x + pulse / 2, y + pulse / 2, color, 3); line(renderer, x + pulse / 2, y - pulse / 2, x - pulse / 2, y + pulse / 2, color, 3);
+            break;
+        case ta::SkillId::Misfortune:
+            brokenRing(renderer, x, y, pulse, color, 2, 5); line(renderer, x - 10, y - 10, x + 10, y + 10, neo::Text, 2);
+            break;
+        case ta::SkillId::LuckyShot:
+            line(renderer, x - pulse, y + pulse / 3, x + pulse, y - pulse / 3, color, 3); circle(renderer, x, y, 5, neo::Amber);
+            break;
+        case ta::SkillId::StackDeck:
+            chamferOutline(renderer, x - 16, y - 20, 32, 40, color, 5, 2); line(renderer, x - 8, y - 10, x + 8, y + 10, color, 2);
+            break;
+        case ta::SkillId::DoubleNothing:
+            circle(renderer, x, y, pulse, color); cross(renderer, x, y, std::max(7, pulse / 3), neo::Text, 2);
             break;
         case ta::SkillId::Count: break;
     }
@@ -594,52 +970,325 @@ void drawSkillGlyph(SDL_Renderer* renderer, const ta::SkillSnapshot& snapshot, i
         case ta::SkillId::CryoField: circle(renderer, cx, cy, 15, color); line(renderer, cx - 10, cy, cx + 10, cy, color, 1); line(renderer, cx, cy - 10, cx, cy + 10, color, 1); break;
         case ta::SkillId::DroneSwarm: circle(renderer, cx - 7, cy, 6, color); circle(renderer, cx + 7, cy, 6, color); circle(renderer, cx, cy - 8, 5, color); break;
         case ta::SkillId::ResonancePulse: circle(renderer, cx, cy, 15, color); circle(renderer, cx, cy, 8, neo::Void); circle(renderer, cx, cy, 5, color); break;
+        case ta::SkillId::ArcBolt: line(renderer, cx - 12, cy + 8, cx, cy - 8, color, 3); line(renderer, cx, cy - 8, cx + 12, cy + 8, color, 3); break;
+        case ta::SkillId::ChainLightning: cross(renderer, cx, cy, 13, color, 2); break;
+        case ta::SkillId::TemporalAnchor: hexagon(renderer, cx, cy, 14, color, 2); cross(renderer, cx, cy, 7, neo::Text, 1); break;
+        case ta::SkillId::PatientZero: circle(renderer, cx, cy, 13, color); circle(renderer, cx + 7, cy - 7, 3, color); break;
+        case ta::SkillId::ScrapCache: filledHexagon(renderer, cx, cy, 13, color); line(renderer, cx - 8, cy, cx + 8, cy, neo::Text, 2); break;
+        case ta::SkillId::Wanted: circle(renderer, cx, cy, 13, color); cross(renderer, cx, cy, 7, neo::Text, 1); break;
+        case ta::SkillId::AlphaBeast: filledDiamond(renderer, cx, cy, 13, color); break;
+        case ta::SkillId::MortarBarrage: filledHexagon(renderer, cx, cy, 13, color); line(renderer, cx, cy, cx + 8, cy - 8, neo::Text, 2); break;
+        case ta::SkillId::RiftGate: brokenRing(renderer, cx, cy, 13, color, 1, 5); break;
+        case ta::SkillId::GuardianWard: hexagon(renderer, cx, cy, 13, color, 2); plusGlyph(renderer, cx, cy, 6, neo::Text, 1); break;
+        case ta::SkillId::LoadedDice: chamferOutline(renderer, cx - 12, cy - 12, 24, 24, color, 5, 2); break;
+        case ta::SkillId::BloodLance: line(renderer, cx - 11, cy + 9, cx + 11, cy - 9, color, 3); break;
+        case ta::SkillId::LifeSiphon: circle(renderer, cx, cy, 12, color); cross(renderer, cx, cy, 6, neo::Text, 1); break;
+        case ta::SkillId::HemorrhageField: brokenRing(renderer, cx, cy, 13, color, 1, 5); break;
+        case ta::SkillId::BloodGolem: filledDiamond(renderer, cx, cy, 13, color); break;
+        case ta::SkillId::LastPulse: circle(renderer, cx, cy, 13, color); cross(renderer, cx, cy, 7, neo::Text, 1); break;
+        case ta::SkillId::TreasonMark: circle(renderer, cx, cy, 13, color); cross(renderer, cx, cy, 7, neo::Text, 2); break;
+        case ta::SkillId::RiotWhisper: brokenRing(renderer, cx, cy, 13, color, 1, 4); line(renderer, cx - 9, cy - 8, cx + 9, cy + 8, color, 2); break;
+        case ta::SkillId::PuppetThread: circle(renderer, cx, cy, 13, color); line(renderer, cx - 8, cy - 8, cx + 8, cy + 8, neo::Text, 2); break;
+        case ta::SkillId::FalseOrders: brokenRing(renderer, cx, cy, 13, color, 1, 4); break;
+        case ta::SkillId::SharedAgony: circle(renderer, cx - 6, cy, 7, color); circle(renderer, cx + 6, cy, 7, color); line(renderer, cx - 6, cy, cx + 6, cy, color, 2); break;
+        case ta::SkillId::Feed: circle(renderer, cx, cy, 13, color); line(renderer, cx - 8, cy - 5, cx + 8, cy + 5, neo::Text, 2); break;
+        case ta::SkillId::Adaptation: filledDiamond(renderer, cx, cy, 13, color); circle(renderer, cx, cy, 5, neo::Text); break;
+        case ta::SkillId::PackCall: circle(renderer, cx - 6, cy, 6, color); circle(renderer, cx + 6, cy, 6, color); circle(renderer, cx, cy - 7, 6, color); break;
+        case ta::SkillId::HuntCommand: circle(renderer, cx, cy, 13, color); cross(renderer, cx, cy, 7, neo::Text, 2); break;
+        case ta::SkillId::Thunderhead: brokenRing(renderer, cx, cy, 13, color, 1, 5); line(renderer, cx - 5, cy - 8, cx + 4, cy + 8, color, 2); break;
+        case ta::SkillId::FlashFlood: line(renderer, cx - 12, cy - 8, cx + 12, cy - 8, color, 2); line(renderer, cx - 12, cy, cx + 12, cy, color, 2); line(renderer, cx - 12, cy + 8, cx + 12, cy + 8, color, 2); break;
+        case ta::SkillId::ThermalSurge: line(renderer, cx - 8, cy + 9, cx, cy - 10, color, 3); line(renderer, cx, cy - 10, cx + 8, cy + 9, color, 3); break;
+        case ta::SkillId::EyeOfTheStorm: circle(renderer, cx, cy, 13, color); circle(renderer, cx, cy, 5, neo::Void); break;
+        case ta::SkillId::BulwarkWall: rect(renderer, cx - 13, cy - 9, 26, 18, color); line(renderer, cx - 4, cy - 9, cx - 4, cy + 9, neo::Text, 1); line(renderer, cx + 5, cy - 9, cx + 5, cy + 9, neo::Text, 1); break;
+        case ta::SkillId::TrapFoundry: filledHexagon(renderer, cx, cy, 13, color); cross(renderer, cx, cy, 6, neo::Text, 1); break;
+        case ta::SkillId::Accelerate: circle(renderer, cx, cy, 13, color); line(renderer, cx - 8, cy, cx + 8, cy, neo::Text, 2); break;
+        case ta::SkillId::Delay: brokenRing(renderer, cx, cy, 13, color, 1, 6); line(renderer, cx, cy - 7, cx, cy + 7, color, 2); break;
+        case ta::SkillId::Rewind: line(renderer, cx + 10, cy, cx - 10, cy, color, 2); line(renderer, cx - 10, cy, cx - 3, cy - 6, color, 2); line(renderer, cx - 10, cy, cx - 3, cy + 6, color, 2); break;
+        case ta::SkillId::BorrowedTime: circle(renderer, cx, cy, 13, color); cross(renderer, cx, cy, 6, neo::Text, 1); break;
+        case ta::SkillId::DeadeyeShot: line(renderer, cx - 12, cy + 5, cx + 12, cy - 5, color, 2); cross(renderer, cx, cy, 5, neo::Text, 1); break;
+        case ta::SkillId::Harpoon: line(renderer, cx - 12, cy, cx + 12, cy, color, 2); break;
+        case ta::SkillId::ExploitWeakness: circle(renderer, cx, cy, 10, color); cross(renderer, cx, cy, 5, neo::Text, 1); break;
+        case ta::SkillId::CollectorDrone: circle(renderer, cx, cy, 8, color); line(renderer, cx - 10, cy, cx + 10, cy, color, 1); break;
+        case ta::SkillId::VectorSwarm: circle(renderer, cx - 7, cy, 4, color); circle(renderer, cx + 7, cy, 4, color); break;
+        case ta::SkillId::Mutation: circle(renderer, cx, cy, 9, color); cross(renderer, cx, cy, 5, neo::Text, 1); break;
+        case ta::SkillId::RuptureHost: brokenRing(renderer, cx, cy, 11, color, 1, 5); break;
+        case ta::SkillId::Quarantine: hexagon(renderer, cx, cy, 11, color, 2); break;
+        case ta::SkillId::MineLayer: filledHexagon(renderer, cx, cy, 10, color); cross(renderer, cx, cy, 5, neo::Text, 1); break;
+        case ta::SkillId::JuryRiggedTurret: filledHexagon(renderer, cx, cy, 10, color); line(renderer, cx, cy, cx + 9, cy - 5, neo::Text, 1); break;
+        case ta::SkillId::StripForParts: cross(renderer, cx, cy, 8, color, 2); break;
+        case ta::SkillId::ImprovisedArsenal: brokenRing(renderer, cx, cy, 11, color, 1, 5); break;
+        case ta::SkillId::SpotterDrone: circle(renderer, cx, cy, 8, color); cross(renderer, cx, cy, 6, color, 1); break;
+        case ta::SkillId::RailCannon: line(renderer, cx - 12, cy, cx + 12, cy, color, 3); break;
+        case ta::SkillId::ClusterShell: brokenRing(renderer, cx, cy, 11, color, 1, 5); break;
+        case ta::SkillId::WalkingBarrage: line(renderer, cx - 8, cy - 8, cx - 8, cy + 8, color, 2); line(renderer, cx + 8, cy - 8, cx + 8, cy + 8, color, 2); break;
+        case ta::SkillId::SpatialCollapse: brokenRing(renderer, cx, cy, 11, color, 1, 5); break;
+        case ta::SkillId::Banish: hexagon(renderer, cx, cy, 10, color, 2); break;
+        case ta::SkillId::PhaseExchange: line(renderer, cx - 10, cy - 7, cx + 10, cy + 7, color, 2); line(renderer, cx + 10, cy - 7, cx - 10, cy + 7, color, 2); break;
+        case ta::SkillId::EventHorizon: brokenRing(renderer, cx, cy, 11, color, 2, 6); break;
+        case ta::SkillId::Intercept: hexagon(renderer, cx, cy, 10, color, 2); break;
+        case ta::SkillId::Challenge: circle(renderer, cx, cy, 10, color); cross(renderer, cx, cy, 5, neo::Text, 1); break;
+        case ta::SkillId::Sanctuary: hexagon(renderer, cx, cy, 10, color, 1); plusGlyph(renderer, cx, cy, 5, neo::Text, 1); break;
+        case ta::SkillId::Judgment: cross(renderer, cx, cy, 8, color, 2); break;
+        case ta::SkillId::Misfortune: brokenRing(renderer, cx, cy, 10, color, 1, 5); break;
+        case ta::SkillId::LuckyShot: line(renderer, cx - 10, cy + 5, cx + 10, cy - 5, color, 2); break;
+        case ta::SkillId::StackDeck: chamferOutline(renderer, cx - 9, cy - 11, 18, 22, color, 4, 1); break;
+        case ta::SkillId::DoubleNothing: circle(renderer, cx, cy, 10, color); cross(renderer, cx, cy, 5, neo::Text, 1); break;
         case ta::SkillId::Count: break;
     }
-    if (!snapshot.branchId.empty()) hexagon(renderer, cx, cy, 20, neo::Text, 1);
+    if (!snapshot.branchId.empty()) {
+        const std::string& branch = snapshot.branchId;
+        hexagon(renderer, cx, cy, 20, neo::Text, 1);
+        // The outer frame is shared by every talent build; the inner mark
+        // communicates the authored specialization without changing combat
+        // state or relying on class color alone.
+        if (branch.find("capstone") != std::string::npos) {
+            cross(renderer, cx, cy, 17, neo::Amber, 1);
+            circle(renderer, cx, cy, 18, neo::Amber);
+        } else if (branch.find("mastery") != std::string::npos) {
+            filledDiamond(renderer, cx, cy - 15, 3, neo::Cyan);
+        } else if (branch.find("edge") != std::string::npos || branch.find("horizon") != std::string::npos) {
+            chevrons(renderer, cx, cy, 16, neo::Blue, 2);
+        } else if (branch.find("snare") != std::string::npos || branch.find("slow") != std::string::npos || branch.find("control") != std::string::npos) {
+            line(renderer, cx - 12, cy + 10, cx + 12, cy + 10, neo::Ice, 2);
+            line(renderer, cx - 8, cy + 6, cx + 8, cy + 6, neo::Ice, 1);
+        } else if (branch.find("chain") != std::string::npos || branch.find("reaction") != std::string::npos || branch.find("wildfire") != std::string::npos) {
+            line(renderer, cx - 12, cy - 8, cx - 3, cy + 3, neo::Amber, 2);
+            line(renderer, cx - 3, cy + 3, cx + 10, cy - 9, neo::Amber, 2);
+        } else if (branch.find("bank") != std::string::npos || branch.find("reserve") != std::string::npos || branch.find("economy") != std::string::npos) {
+            chamferOutline(renderer, cx - 8, cy - 8, 16, 16, neo::Mint, 3, 1);
+        } else {
+            filledDiamond(renderer, cx, cy - 15, 2, neo::Text);
+        }
+    }
 }
 
-void drawHud(SDL_Renderer* renderer, const GameSim& sim, bool highContrast = false, bool subtitles = true) {
+void drawHud(SDL_Renderer* renderer, const GameSim& sim, bool highContrast = false, bool subtitles = true, int targetingSlot = -1) {
     rect(renderer, 0, 0, GameSim::Width, 72, highContrast ? neo::Deep : neo::Void);
     neonDivider(renderer, 16, 70, 1248, neo::Cyan);
     neoPanel(renderer, 16, 8, 202, 52, neo::Mint, false, 8);
     neoPanel(renderer, 230, 8, 202, 52, neo::Amber, false, 8);
     neoPanel(renderer, 444, 8, 202, 52, neo::Violet, false, 8);
+    const ta::SkillSnapshot targetedSnapshot = targetingSlot >= 0 && targetingSlot < static_cast<int>(ta::SkillSlotCount)
+        ? sim.skillSnapshot(static_cast<std::size_t>(targetingSlot)) : ta::SkillSnapshot{};
+    const bool previewingHealthCost = targetingSlot >= 0 && targetedSnapshot.healthCost > 0;
+    const int postCastLives = std::max(1, sim.livesRemaining() - targetedSnapshot.healthCost);
     segmentedBar(renderer, 24, 32, 154, 16, static_cast<float>(std::max(0, sim.livesRemaining())) / 20.0f, neo::Mint, 10);
+    if (previewingHealthCost) {
+        const int markerX = 30 + static_cast<int>(std::round(142.0f * static_cast<float>(postCastLives) / 20.0f));
+        line(renderer, markerX, 30, markerX, 50, neo::Red, 2);
+    }
     segmentedBar(renderer, 238, 32, 154, 16, std::min(1.0f, static_cast<float>(sim.currencyAmount()) / 60.0f), neo::Amber, 10);
     segmentedBar(renderer, 452, 32, 154, 16, sim.ultimateRatio(), neo::Violet, 10);
     drawText(renderer, 28, 14, "LIVES", 1, neo::Muted);
     drawText(renderer, 242, 14, "CREDITS", 1, neo::Muted);
     drawText(renderer, 456, 14, "ULTIMATE", 1, neo::Muted);
-    drawText(renderer, 160, 14, std::to_string(sim.livesRemaining()), 1, neo::Text);
+    drawTextFitInBox(renderer, "hud.lives.value", {144, 14, 74, 14}, previewingHealthCost ? std::to_string(sim.livesRemaining()) + ">" + std::to_string(postCastLives) : std::to_string(sim.livesRemaining()), 1, previewingHealthCost ? neo::Red : neo::Text);
     drawText(renderer, 374, 14, std::to_string(sim.currencyAmount()), 1, neo::Text);
     drawText(renderer, 588, 14, std::to_string(static_cast<int>(sim.ultimateRatio() * 100.0f)) + "%", 1, neo::Text);
     neoPanel(renderer, 658, 8, 324, 52, neo::Blue, false, 8);
-    drawText(renderer, 674, 14, ta::ultimateName(sim.ultimate()), 1, neo::Violet);
+    const std::string resonantUltimate = sim.hasResonantUltimate() ? "RESONANT // " + sim.resonantUltimateName() : "BASE ULTIMATE";
+    drawTextFitInBox(renderer, "hud.ultimate.resonance", {674, 14, 292, 14}, resonantUltimate, 1, sim.hasResonantUltimate() ? neo::Amber : neo::Violet);
     drawText(renderer, 674, 38, ta::weaponName(sim.weapon()), 1, neo::Cyan);
     neoPanel(renderer, 994, 8, 250, 52, neo::Cyan, false, 8);
-    drawText(renderer, 1010, 14, "WAVE", 1, neo::Muted);
-    drawText(renderer, 1010, 38, std::to_string(sim.waveNumber()) + "  //  " + std::to_string(sim.enemiesRemaining()), 1, neo::Text);
+    const ta::ResourceSnapshot resources = sim.resources();
+    const ta::SkillLoadoutIdentity identity = sim.skillLoadoutIdentity();
+    const auto hasGroup = [&identity](const char* group) { return std::find(identity.activeGroups.begin(), identity.activeGroups.end(), group) != identity.activeGroups.end(); };
+    drawTextFitInBox(renderer, "hud.wave", {1010, 14, 228, 14}, "WAVE " + std::to_string(sim.waveNumber()) + " // ENEMIES " + std::to_string(sim.enemiesRemaining()), 1, neo::Text);
+    std::string primaryResources;
+    if (hasGroup("salvager")) primaryResources += "SCRAP " + std::to_string(resources.scrap) + "/" + std::to_string(resources.scrapCarryCap) + "  CARRY " + std::to_string(resources.scrapCarryover);
+    if (hasGroup("plaguewright")) primaryResources += (primaryResources.empty() ? "" : "  ") + std::string("BIO ") + std::to_string(resources.biomass);
+    if (hasGroup("architect")) primaryResources += (primaryResources.empty() ? "" : "  ") + std::string("BLD ") + std::to_string(resources.buildSupply) + "/" + std::to_string(resources.buildSupplyCap);
+    if (primaryResources.empty()) primaryResources = "NO CLASS ECONOMY METER";
+    if (hasGroup("salvager") && sim.salvagerMasterworkReady()) primaryResources += "  MASTERWORK";
+    drawTextFitInBox(renderer, "hud.resources.primary", {1010, 30, 228, 14}, primaryResources, 1, neo::Amber);
+    std::string secondaryResources;
+    const auto addResource = [&secondaryResources](const std::string& value) { secondaryResources += (secondaryResources.empty() ? "" : "  ") + value; };
+    if (hasGroup("salvager")) addResource("FIELD " + std::to_string(resources.scrapOnField) + "  RES " + std::to_string(resources.scrapReserved) + "  TRANSIT " + std::to_string(resources.scrapInTransit) + "  DRONES " + std::to_string(resources.claimedDrones) + "/" + std::to_string(resources.activeDrones));
+    if (hasGroup("chronomancer")) addResource("PAR " + std::to_string(resources.paradox));
+    if (hasGroup("void_shepherd")) addResource("INS " + std::to_string(resources.instability));
+    if (hasGroup("oathkeeper")) addResource("RES " + std::to_string(resources.resolve));
+    if (hasGroup("fatebinder")) addResource("FAT " + std::to_string(resources.fate));
+    if (hasGroup("bounty_hunter")) addResource("TRO " + std::to_string(resources.trophies));
+    if (hasGroup("usurper")) addResource("DIS " + std::to_string(resources.discord));
+    if (hasGroup("stormcaller")) addResource("CHG " + std::to_string(resources.charge));
+    if (hasGroup("beastmaster")) addResource("BND " + std::to_string(resources.bond));
+    if (hasGroup("artillerist")) addResource("DATA " + std::to_string(resources.targetingData));
+    if (secondaryResources.empty()) secondaryResources = "NO SECONDARY RESOURCE";
+    drawTextFitInBox(renderer, "hud.resources.secondary", {1010, 46, 228, 14}, secondaryResources, 1, neo::Muted);
     const std::array<Color, 5> chips{{neo::Mint, neo::Amber, neo::Violet, neo::Ice, neo::Red}};
+    static constexpr std::array<const char*, 4> mutationStrainNames{{"NECROTIC", "RABID", "SPORE", "SYMBIOTIC"}};
     for (int index = 0; index < 5; ++index) rect(renderer, 24 + index * 28, 61, 20, 3, chips[static_cast<std::size_t>(index)]);
+    const auto drawResourcePips = [&](const UiRect& card, const ta::SkillSnapshot& snapshot, const Color& accent, bool targeting) {
+        int current = -1;
+        int maximum = 0;
+        if (hasGroup("arcanist") && snapshot.skill != ta::SkillId::Count) {
+            const auto& tags = sim.contentConfig().skillDefinitions[static_cast<std::size_t>(snapshot.skill)].tags;
+            if (std::find(tags.begin(), tags.end(), "generator") != tags.end() || snapshot.skill == ta::SkillId::ChainLightning) { current = sim.arcanistCadence(); maximum = 10; }
+        }
+        if (current < 0 && hasGroup("stormcaller") && snapshot.skill != ta::SkillId::Count) {
+            const auto& tags = sim.contentConfig().skillDefinitions[static_cast<std::size_t>(snapshot.skill)].tags;
+            if (std::find(tags.begin(), tags.end(), "reaction") != tags.end() || std::find(tags.begin(), tags.end(), "elemental") != tags.end()) { current = resources.charge; maximum = 6; }
+        }
+        if (current < 0 && snapshot.resourceCost > 0) { current = snapshot.resourceAvailable; maximum = std::max(snapshot.resourceCost, 1); }
+        if (current < 0 || maximum <= 0) return;
+        const int filled = std::clamp(static_cast<int>(std::round(static_cast<float>(current) * 5.0f / static_cast<float>(maximum))), 0, 5);
+        for (int pip = 0; pip < 5; ++pip) {
+            const int x = card.x + 8 + pip * 9;
+            const Color pipColor = pip < filled ? accent : neo::Muted;
+            chamferOutline(renderer, x, card.y + 65, 7, 5, pipColor, 2, 1);
+            if (pip < filled) rect(renderer, x + 2, card.y + 67, 3, 1, pipColor);
+            if (targeting && snapshot.resourceCost > 0 && pip < std::min(5, snapshot.resourceCost)) {
+                chamferOutline(renderer, x, card.y + 65, 7, 5, neo::Amber, 2, 1);
+            }
+        }
+    };
     for (std::size_t slot = 0; slot < ta::SkillSlotCount; ++slot) {
         const UiRect card = skillSlotButton(static_cast<int>(slot));
         const ta::SkillSnapshot snapshot = sim.skillSnapshot(slot);
         const Color accent = chips[slot % chips.size()];
-        neoPanel(renderer, card.x, card.y, card.width, card.height, snapshot.cooldownRemaining == 0 && snapshot.charges > 0 ? accent : neo::Muted, false, 8);
-        drawSkillGlyph(renderer, snapshot, card.x + 90, card.y + 38, accent);
+        const bool resourceReady = (snapshot.resourceCost <= 0 || snapshot.resourceAvailable >= snapshot.resourceCost) && (snapshot.healthCost <= 0 || sim.livesRemaining() > snapshot.healthCost);
+        neoPanel(renderer, card.x, card.y, card.width, card.height, snapshot.cooldownRemaining == 0 && snapshot.charges > 0 && resourceReady ? accent : neo::Muted, false, 8);
+        drawSkillGlyph(renderer, snapshot, card.x + 86, card.y + 38, accent);
         drawTextFitInBox(renderer, "hud.skill.name", {card.x + 8, card.y + 7, card.width - 16, 14}, std::to_string(slot + 1) + " // " + std::string(ta::skillName(snapshot.skill)), 1, neo::Text);
-        drawTextFitInBox(renderer, "hud.skill.mode", {card.x + 8, card.y + 29, card.width - 16, 14}, std::string(ta::skillTargetModeName(snapshot.targetMode)) + " // " + (snapshot.branchId.empty() ? "BASE" : snapshot.branchId), 1, neo::Muted);
+        std::string modeText = std::string(ta::skillTargetModeName(snapshot.targetMode)) + " // " + (snapshot.branchId.empty() ? "BASE" : snapshot.branchId);
+        if (snapshot.skill == ta::SkillId::Mutation) modeText += " // " + std::string(mutationStrainNames[static_cast<std::size_t>(std::clamp(sim.mutationStrain(), 1, 4) - 1)]);
+        if (std::find(identity.activeGroups.begin(), identity.activeGroups.end(), "arcanist") != identity.activeGroups.end()) modeText += " // ARC " + std::to_string(sim.arcanistCadence()) + "/10" + (sim.arcanistAfterimageReady() ? " // AFTERIMAGE" : "");
+        drawTextFitInBox(renderer, "hud.skill.mode", {card.x + 8, card.y + 29, card.width - 16, 14}, modeText, 1, snapshot.skill == ta::SkillId::Mutation ? neo::Violet : neo::Muted);
         const std::string cooldown = snapshot.cooldownRemaining > 0 ? (std::to_string(snapshot.cooldownRemaining / GameSim::TickRate) + "s") : "READY";
-        drawTextFitInBox(renderer, "hud.skill.cooldown", {card.x + 8, card.y + 50, card.width - 16, 14}, cooldown + "  " + std::to_string(snapshot.charges) + "/" + std::to_string(snapshot.maximumCharges), 1, snapshot.cooldownRemaining == 0 ? accent : neo::Amber);
+        std::string resourceCost = snapshot.resourceCost > 0 ? " // " + std::to_string(snapshot.resourceCost) + " " + snapshot.resourceId : "";
+        if (snapshot.skill == ta::SkillId::MineLayer || snapshot.skill == ta::SkillId::JuryRiggedTurret) resourceCost += " // SCRAP " + std::to_string(static_cast<int>(std::round(snapshot.resolvedValueB)));
+        else if (snapshot.skill == ta::SkillId::ImprovisedArsenal) resourceCost += " // ALL SCRAP";
+        if (snapshot.skill == ta::SkillId::ChainLightning && sim.arcanistCadence() > 0) resourceCost += " // EMPOWER " + std::to_string(static_cast<int>(std::round(snapshot.resolvedValueA)));
+        const std::string healthCost = snapshot.healthCost > 0 ? " // -" + std::to_string(snapshot.healthCost) + " HP" : "";
+        drawTextFitInBox(renderer, "hud.skill.cooldown", {card.x + 8, card.y + 50, card.width - 16, 14}, cooldown + "  " + std::to_string(snapshot.charges) + "/" + std::to_string(snapshot.maximumCharges) + resourceCost + healthCost, 1, snapshot.cooldownRemaining == 0 && resourceReady ? accent : neo::Amber);
+        drawResourcePips(card, snapshot, accent, targetingSlot == static_cast<int>(slot));
     }
     neoPanel(renderer, ultimateSkillButton.x, ultimateSkillButton.y, ultimateSkillButton.width, ultimateSkillButton.height, neo::Violet, false, 8);
     drawText(renderer, ultimateSkillButton.x + 10, ultimateSkillButton.y + 9, "ULTIMATE", 1, neo::Muted);
-    drawText(renderer, ultimateSkillButton.x + 10, ultimateSkillButton.y + 30, ta::ultimateName(sim.ultimate()), 1, neo::Violet);
+    drawTextFitInBox(renderer, "hud.ultimate.name", {ultimateSkillButton.x + 10, ultimateSkillButton.y + 30, ultimateSkillButton.width - 20, 14}, sim.hasResonantUltimate() ? sim.resonantUltimateName() : std::string(ta::ultimateName(sim.ultimate())), 1, neo::Violet);
     drawText(renderer, ultimateSkillButton.x + 10, ultimateSkillButton.y + 53, sim.ultimateRatio() >= 1.0f ? "READY // SPACE" : std::to_string(static_cast<int>((1.0f - sim.ultimateRatio()) * 18.0f)) + "s", 1, neo::Text);
+    const std::string ultimateDetail = sim.ultimateEvolution() == ta::UltimateEvolution::None
+        ? std::string(ta::ultimateDescription(sim.ultimate()))
+        : std::string(ta::ultimateEvolutionName(sim.ultimateEvolution())) + " // " + ta::ultimateEvolutionDescription(sim.ultimateEvolution());
+    drawTextFitInBox(renderer, "hud.ultimate.detail", {ultimateSkillButton.x + 10, ultimateSkillButton.y + 68, ultimateSkillButton.width - 20, 12}, ultimateDetail, 1, neo::Muted);
+    std::string contextualText;
+    if (std::find(identity.activeGroups.begin(), identity.activeGroups.end(), "arcanist") != identity.activeGroups.end()) {
+        contextualText = "ARCANE SEQUENCE // " + std::to_string(sim.arcanistCadence()) + "/10 // NEXT CONSUMER " + (sim.arcanistCadence() > 0 ? "EMPOWERED" : "BASE") + (sim.arcanistAfterimageReady() ? " // AFTERIMAGE READY" : "");
+    }
+    if (std::find(identity.activeGroups.begin(), identity.activeGroups.end(), "chronomancer") != identity.activeGroups.end()) {
+        contextualText = "PARADOX // " + std::to_string(resources.paradox) + " // TIMELINE OPS " + std::to_string(sim.chronomancerOperationMask()) + (sim.chronomancerStableMomentReady() ? " // STABLE MOMENT READY" : "");
+    }
+    if (sim.activeBountyId() != 0) {
+        contextualText = "BOUNTY // " + std::string(sim.bountyKillingMomentumReady() ? "KILLING MOMENTUM READY // " : "");
+        for (std::size_t index = 0; index < 3; ++index) if (sim.bountyObjectiveKind(index) >= 0) {
+            const ta::BountyObjectiveDefinition* objective = sim.bountyObjectiveDefinition(index);
+            const std::string name = objective == nullptr ? "OBJECTIVE" : objective->display;
+            contextualText += std::string(index == 0 ? "" : "  ") + name + " " + std::to_string(sim.bountyObjectiveProgress(index)) + "/" + std::to_string(sim.bountyObjectiveTarget(index));
+        }
+    }
+    if (std::find(identity.activeGroups.begin(), identity.activeGroups.end(), "fatebinder") != identity.activeGroups.end()) {
+        static constexpr std::array<const char*, 4> fateEventNames{{"BAD", "NEUTRAL", "GOOD", "JACKPOT"}};
+        std::string fateText = "FATE QUEUE // ";
+        for (std::size_t index = 0; index < static_cast<std::size_t>(sim.fateQueuePreviewCount()) && index < static_cast<std::size_t>(sim.fateQueueSize()); ++index) {
+            if (index > 0) fateText += " > ";
+            fateText += fateEventNames[static_cast<std::size_t>(std::clamp(sim.fateEventAt(index), 0, 3))];
+        }
+        fateText += " // BANK " + std::to_string(sim.fateUnfavorableBank());
+        if (sim.fateRewriteReady()) fateText += " // REWRITE READY";
+        if (sim.fateHouseTicks() > 0) fateText += " // HOUSE " + std::to_string((sim.fateHouseTicks() + GameSim::TickRate - 1) / GameSim::TickRate) + "s";
+        contextualText += (contextualText.empty() ? "" : "   ") + fateText;
+    }
+    if (std::find(identity.activeGroups.begin(), identity.activeGroups.end(), "stormcaller") != identity.activeGroups.end()) {
+        static constexpr std::array<const char*, 8> reactionNames{{"NONE", "ARC", "FREEZE", "SHATTER", "FIRESTORM", "PLASMA", "STEAM", "SUPERCELL"}};
+        std::string stormText = "STORM // RES " + std::to_string(sim.stormResonanceCount()) + "/3";
+        for (std::size_t index = 0; index < static_cast<std::size_t>(sim.stormResonanceCount()); ++index) {
+            stormText += " " + std::string(reactionNames[static_cast<std::size_t>(std::clamp(sim.stormResonanceId(index), 0, 7))]);
+        }
+        if (sim.stormPerfectTicks() > 0) stormText += " // PERFECT " + std::to_string((sim.stormPerfectTicks() + GameSim::TickRate - 1) / GameSim::TickRate) + "s";
+        contextualText += (contextualText.empty() ? "" : "   ") + stormText;
+    }
+    if (std::find(identity.activeGroups.begin(), identity.activeGroups.end(), "plaguewright") != identity.activeGroups.end()) {
+        static constexpr std::array<const char*, 5> strainNames{{"NONE", "NECROTIC", "RABID", "SPORE", "SYMBIOTIC"}};
+        std::string plagueText = "PLAGUE // " + std::string(strainNames[static_cast<std::size_t>(std::clamp(sim.pandemicPrimeStrain() > 0 ? sim.pandemicPrimeStrain() : sim.mutationStrain(), 0, 4))]);
+        plagueText += " // BIO " + std::to_string(sim.resources().biomass) + " // HOSTS " + std::to_string(sim.plagueDistinctInfectedCount()) + (sim.plagueFreeMutationReady() ? " // FREE MUTATION" : "");
+        if (sim.pandemicTicks() > 0) plagueText += " // PRIME " + std::to_string((sim.pandemicTicks() + GameSim::TickRate - 1) / GameSim::TickRate) + "s";
+        contextualText += (contextualText.empty() ? "" : "   ") + plagueText;
+    }
+    if (std::find(identity.activeGroups.begin(), identity.activeGroups.end(), "artillerist") != identity.activeGroups.end()) {
+        const std::string artilleryText = "TARGETING DATA // ACCURATE " + std::to_string(sim.artilleristAccurateImpacts()) + "/3" + (sim.artilleristFireSolutionReady() ? " // FIRE SOLUTION READY" : "");
+        contextualText += (contextualText.empty() ? "" : "   ") + artilleryText;
+    }
+    if (std::find(identity.activeGroups.begin(), identity.activeGroups.end(), "void_shepherd") != identity.activeGroups.end()) {
+        contextualText += (contextualText.empty() ? "" : "   ") + std::string("INSTABILITY // ") + std::to_string(resources.instability) + (sim.voidFixedPointReady() ? " // FIXED POINT READY" : "");
+    }
+    if (std::find(identity.activeGroups.begin(), identity.activeGroups.end(), "beastmaster") != identity.activeGroups.end()) {
+        static constexpr std::array<const char*, 6> traitNames{{"NONE", "ARMORED HIDE", "LIGHTNING GLANDS", "REGENERATION", "BURROWING", "SPIKED CARAPACE"}};
+        const int signature = std::clamp(sim.beastSignatureTrait(), 0, 5);
+        const int adaptation = std::clamp(sim.beastAdaptation(), 0, 5);
+        std::string beastText = "BEAST // BASIC DAMAGE PASSIVE";
+        if (adaptation != 0) {
+            beastText += " // ADAPT " + std::string(traitNames[static_cast<std::size_t>(adaptation)]);
+            beastText += sim.beastAdaptationPersistent() ? " PERSISTENT" : " " + std::to_string((sim.beastAdaptationTicks() + GameSim::TickRate - 1) / GameSim::TickRate) + "s";
+            if (sim.beastAdaptationStreak() > 1) beastText += " // STREAK " + std::to_string(sim.beastAdaptationStreak());
+        }
+        if (signature != 0) beastText += " // SIGNATURE " + std::string(traitNames[static_cast<std::size_t>(signature)]);
+        contextualText += (contextualText.empty() ? "" : "   ") + beastText;
+    }
+    if (std::find(identity.activeGroups.begin(), identity.activeGroups.end(), "bloodbinder") != identity.activeGroups.end()) {
+        std::string bloodText = "BLOOD // DEBT " + std::to_string(sim.bloodDebt()) + " // HEART " + std::to_string(sim.bloodHeartFragments()) + "/3" + (sim.bloodReservoirReady() ? " // RESERVOIR READY" : "") + (sim.bloodHarvestShield() > 0 ? " // SHIELD " + std::to_string(sim.bloodHarvestShield()) : "");
+        if (sim.bloodEclipseHealth() > 0) bloodText += " // ECLIPSE " + std::to_string(sim.bloodEclipseHealth());
+        contextualText += (contextualText.empty() ? "" : "   ") + bloodText;
+    }
+    if (std::find(identity.activeGroups.begin(), identity.activeGroups.end(), "legion") != identity.activeGroups.end()) {
+        static constexpr std::array<const char*, 4> orderNames{{"NONE", "MELEE SHIELD", "RANGED HASTE", "SUPPORT PULSE"}};
+        const int order = std::clamp(sim.legionLastOrderType(), 0, 3);
+        contextualText += (contextualText.empty() ? "" : "   ") + std::string("LEGION // SUMMONS ") + std::to_string(sim.legionSummonCasts()) + " // ORDERS " + std::to_string(sim.legionMinorOrders()) + " // " + orderNames[static_cast<std::size_t>(order)];
+    }
+    if (std::find(identity.activeGroups.begin(), identity.activeGroups.end(), "architect") != identity.activeGroups.end()) {
+        contextualText += (contextualText.empty() ? "" : "   ") + std::string("NETWORK // TYPES ") + std::to_string(sim.architectNetworkMask()) + (sim.architectNetworkReady() ? " // DEFENSE NETWORK ONLINE" : "");
+    }
+    if (std::find(identity.activeGroups.begin(), identity.activeGroups.end(), "oathkeeper") != identity.activeGroups.end()) {
+        static constexpr std::array<const char*, 3> vowNames{{"PROTECT TOWER", "PROTECT ALLY", "CHALLENGE"}};
+        std::string oathText = "OATH // ";
+        if (sim.activeVowKind() >= 0) {
+            const int vowKind = std::clamp(sim.activeVowKind(), 0, 2);
+            oathText += std::string(vowNames[static_cast<std::size_t>(vowKind)]) + " " + std::to_string(sim.activeVowProgress()) + "/" + std::to_string(sim.activeVowTarget());
+        } else {
+            oathText += "READY";
+        }
+        oathText += " // RES " + std::to_string(sim.resources().resolve) + " // DONE " + std::to_string(sim.vowsCompleted());
+        oathText += " // TYPES " + std::to_string(sim.oathVowTypeMask());
+        if (sim.oathExemplarReady()) oathText += " // EXEMPLAR READY";
+        if (sim.oathRewardChoiceA() != 0) oathText += " // CHOOSE 1:RESOLVE 2:WARD";
+        contextualText += (contextualText.empty() ? "" : "   ") + oathText;
+    }
+    if (sim.activeBountyId() != 0) {
+        neoPanel(renderer, 862, 430, 368, 166, neo::Amber, false, 8);
+        drawTextFitInBox(renderer, "hud.bounty.detail.title", {878, 442, 336, 14}, "MOST WANTED // CONTRACT DETAILS", 1, neo::Amber);
+        int detailY = 462;
+        for (std::size_t index = 0; index < 3; ++index) {
+            const ta::BountyObjectiveDefinition* objective = sim.bountyObjectiveDefinition(index);
+            if (objective == nullptr) continue;
+            const bool complete = sim.bountyObjectiveProgress(index) >= sim.bountyObjectiveTarget(index);
+            const std::string progress = objective->display + " " + std::to_string(sim.bountyObjectiveProgress(index)) + "/" + std::to_string(sim.bountyObjectiveTarget(index));
+            drawTextFitInBox(renderer, "hud.bounty.detail.name", {878, detailY, 336, 13}, progress, 1, complete ? neo::Mint : neo::Text);
+            drawTextFitInBox(renderer, "hud.bounty.detail.description", {878, detailY + 13, 336, 13}, objective->description, 1, neo::Muted);
+            detailY += 34;
+        }
+    }
+    if (!contextualText.empty()) drawTextFitInBox(renderer, "hud.contextual.systems", hudContextualStrip, contextualText, 1, neo::Amber);
     std::string status = sim.statusText();
     for (const ta::Enemy& enemy : sim.enemies()) if (enemy.boss && enemy.telegraphTicks > 0) status = "BOSS ATTACK INCOMING";
-    if (subtitles) drawText(renderer, 24, 700, status, 1, neo::Muted);
+    if (sim.activeBountyId() != 0) {
+        for (std::size_t index = 0; index < 3; ++index) {
+            const ta::BountyObjectiveDefinition* objective = sim.bountyObjectiveDefinition(index);
+            if (objective != nullptr && sim.bountyObjectiveProgress(index) < sim.bountyObjectiveTarget(index)) {
+                status += " // " + objective->description;
+                break;
+            }
+        }
+    }
+    if (subtitles) drawTextFitInBox(renderer, "hud.status", hudStatusStrip, status, 1, neo::Muted);
 }
 
 void drawSkillTargetPreview(SDL_Renderer* renderer, const GameSim& sim, int slot, int pointerX, int pointerY) {
@@ -650,16 +1299,256 @@ void drawSkillTargetPreview(SDL_Renderer* renderer, const GameSim& sim, int slot
     const float worldY = static_cast<float>(pointerY) > static_cast<float>(GameSim::Height) ? static_cast<float>(pointerY) / GameSim::WorldScale : static_cast<float>(pointerY);
     const int x = std::clamp(static_cast<int>(worldX), 92, GameSim::Width - 40);
     const int y = std::clamp(static_cast<int>(worldY), 24, GameSim::Height - 24);
-    const Color color = snapshot.cooldownRemaining == 0 && snapshot.charges > 0 ? skillAccent(snapshot.skill) : neo::Red;
+    ta::TargetSpec previewTarget;
+    previewTarget.mode = snapshot.targetMode;
+    previewTarget.world = {static_cast<float>(x), static_cast<float>(y)};
+    std::string previewError;
+    const bool targetLegal = sim.previewSkillTarget(static_cast<std::size_t>(slot), previewTarget, &previewError);
+    const Color color = snapshot.cooldownRemaining == 0 && snapshot.charges > 0 && targetLegal ? skillAccent(snapshot.skill) : neo::Red;
     const auto& definitions = sim.contentConfig().skillDefinitions;
-    const float authoredRadius = static_cast<std::size_t>(snapshot.skill) < definitions.size() ? definitions[static_cast<std::size_t>(snapshot.skill)].radius : 100.0f;
+    const float authoredRadius = snapshot.resolvedRadius > 0.0f ? snapshot.resolvedRadius : (static_cast<std::size_t>(snapshot.skill) < definitions.size() ? definitions[static_cast<std::size_t>(snapshot.skill)].radius : 100.0f);
     const int targetRadius = std::max(24, static_cast<int>(authoredRadius));
+    const bool bloodSkill = snapshot.skill == ta::SkillId::BloodLance || snapshot.skill == ta::SkillId::LifeSiphon || snapshot.skill == ta::SkillId::HemorrhageField || snapshot.skill == ta::SkillId::BloodGolem || snapshot.skill == ta::SkillId::LastPulse;
+    if (bloodSkill) {
+        int eligibleSummons = 0;
+        for (const ta::AlliedUnit& unit : sim.alliedUnits()) {
+            const float dx = unit.pos.x - static_cast<float>(x);
+            const float dy = unit.pos.y - static_cast<float>(y);
+            if (!unit.alive || dx * dx + dy * dy > authoredRadius * authoredRadius) continue;
+            ++eligibleSummons;
+            const bool titheBranch = snapshot.branchId == "tithe";
+            circle(renderer, static_cast<int>(unit.pos.x), static_cast<int>(unit.pos.y), static_cast<int>(unit.radius + 8.0f), snapshot.skill == ta::SkillId::LifeSiphon && titheBranch ? neo::Amber : neo::Red);
+            if (snapshot.skill == ta::SkillId::LifeSiphon && !titheBranch) cross(renderer, static_cast<int>(unit.pos.x), static_cast<int>(unit.pos.y), 5, neo::Text, 1);
+        }
+        const int currentLives = sim.livesRemaining();
+        std::string bloodPreview = "BLOOD " + std::to_string(currentLives);
+        if (snapshot.skill == ta::SkillId::LifeSiphon) {
+            const bool titheBranch = snapshot.branchId == "tithe";
+            const int estimatedRecovery = std::min(titheBranch ? 8 : 10, eligibleSummons * std::max(1, static_cast<int>(std::round(snapshot.resolvedValueA))));
+            bloodPreview += titheBranch ? ">" + std::to_string(std::min(sim.maxLivesAllowed(), currentLives + estimatedRecovery)) + " // DRAIN " + std::to_string(eligibleSummons) : ">" + std::to_string(std::min(sim.maxLivesAllowed(), currentLives + estimatedRecovery)) + " // HARVEST " + std::to_string(eligibleSummons);
+            if (snapshot.branchId == "harvest" && sim.bloodHarvestShield() > 0) bloodPreview += " // SHIELD " + std::to_string(sim.bloodHarvestShield());
+        } else if (snapshot.healthCost > 0) {
+            bloodPreview += ">" + std::to_string(std::max(1, currentLives - snapshot.healthCost)) + " // COST " + std::to_string(snapshot.healthCost);
+        }
+        drawTextFitInBox(renderer, "hud.target.blood", {860, 390, 205, 14}, bloodPreview, 1, neo::Red, 4);
+    }
+    const bool salvagerSkill = snapshot.skill == ta::SkillId::ScrapCache || snapshot.skill == ta::SkillId::MineLayer || snapshot.skill == ta::SkillId::JuryRiggedTurret || snapshot.skill == ta::SkillId::StripForParts || snapshot.skill == ta::SkillId::ImprovisedArsenal;
+    if (salvagerSkill) {
+        const ta::ResourceSnapshot salvage = sim.resources();
+        int scrapCost = 0;
+        int buildCost = 0;
+        if (snapshot.skill == ta::SkillId::MineLayer) scrapCost = static_cast<int>(std::round(snapshot.resolvedValueB));
+        else if (snapshot.skill == ta::SkillId::JuryRiggedTurret) scrapCost = static_cast<int>(std::round(snapshot.resolvedValueB));
+        else if (snapshot.skill == ta::SkillId::ImprovisedArsenal) scrapCost = salvage.scrap;
+        if (snapshot.skill == ta::SkillId::MineLayer || snapshot.skill == ta::SkillId::JuryRiggedTurret || snapshot.skill == ta::SkillId::ImprovisedArsenal) buildCost = snapshot.skill == ta::SkillId::MineLayer ? 12 : 20;
+        int dismantleTargets = 0;
+        if (snapshot.skill == ta::SkillId::StripForParts) {
+            for (const ta::DeployableBuilding& building : sim.deployableBuildings()) {
+                const float dx = building.pos.x - static_cast<float>(x);
+                const float dy = building.pos.y - static_cast<float>(y);
+                if (building.alive && dx * dx + dy * dy <= authoredRadius * authoredRadius) {
+                    ++dismantleTargets;
+                    circle(renderer, static_cast<int>(building.pos.x), static_cast<int>(building.pos.y), static_cast<int>(building.footprintRadius + 6.0f), neo::Mint);
+                }
+            }
+        }
+        const int afterScrap = std::max(0, salvage.scrap - scrapCost);
+        std::string salvageText = "SCRAP " + std::to_string(salvage.scrap) + ">" + std::to_string(afterScrap) + " // COST " + std::to_string(scrapCost);
+        if (snapshot.skill == ta::SkillId::StripForParts) salvageText = "SCRAP " + std::to_string(salvage.scrap) + " // RECOVER " + std::to_string(dismantleTargets);
+        if (buildCost > 0) salvageText += " // BLD " + std::to_string(salvage.buildSupply) + "/" + std::to_string(salvage.buildSupplyCap);
+        drawTextFitInBox(renderer, "hud.target.salvage", {860, 444, 205, 14}, salvageText, 1, neo::Amber, 4);
+    }
+    const bool bountySkill = snapshot.skill == ta::SkillId::Wanted || snapshot.skill == ta::SkillId::DeadeyeShot || snapshot.skill == ta::SkillId::Harpoon || snapshot.skill == ta::SkillId::ExploitWeakness;
+    if (bountySkill) {
+        int eligibleTargets = 0;
+        int bossTargets = 0;
+        bool activeTargetInArea = false;
+        for (const ta::Enemy& enemy : sim.enemies()) {
+            const float dx = enemy.pos.x - static_cast<float>(x);
+            const float dy = enemy.pos.y - static_cast<float>(y);
+            if (!enemy.alive || dx * dx + dy * dy > authoredRadius * authoredRadius) continue;
+            ++eligibleTargets;
+            if (enemy.boss) ++bossTargets;
+            const bool active = enemy.bountyId != 0 && enemy.bountyId == sim.activeBountyId();
+            activeTargetInArea = activeTargetInArea || active;
+            circle(renderer, static_cast<int>(enemy.pos.x), static_cast<int>(enemy.pos.y), static_cast<int>(enemy.radius + (active ? 11.0f : 7.0f)), active ? neo::Amber : (enemy.boss ? neo::Red : neo::Muted));
+            if (active) cross(renderer, static_cast<int>(enemy.pos.x), static_cast<int>(enemy.pos.y), 6, neo::Text, 1);
+        }
+        std::string contractText = "TARGETS " + std::to_string(eligibleTargets) + " // BOSS " + std::to_string(bossTargets);
+        if (sim.activeBountyId() != 0) {
+            int completed = sim.bountyObjectivesCompleted();
+            contractText += " // CONTRACT " + std::to_string(completed) + "/3";
+            for (std::size_t objectiveIndex = 0; objectiveIndex < 3; ++objectiveIndex) {
+                const ta::BountyObjectiveDefinition* objective = sim.bountyObjectiveDefinition(objectiveIndex);
+                if (objective != nullptr && sim.bountyObjectiveProgress(objectiveIndex) < sim.bountyObjectiveTarget(objectiveIndex)) {
+                    contractText += " // NEXT " + objective->display;
+                    break;
+                }
+            }
+            if (activeTargetInArea) contractText += " // MARKED";
+        } else if (snapshot.skill == ta::SkillId::Wanted) {
+            contractText += " // NEW CONTRACT";
+        }
+        drawTextFitInBox(renderer, "hud.target.bounty", {860, 426, 205, 14}, contractText, 1, neo::Amber, 4);
+    }
+    const bool chronomancerSkill = snapshot.skill == ta::SkillId::TemporalAnchor || snapshot.skill == ta::SkillId::Accelerate || snapshot.skill == ta::SkillId::Delay || snapshot.skill == ta::SkillId::Rewind;
+    if (chronomancerSkill) {
+        int timelineTargets = 0;
+        int anchoredTargets = 0;
+        int telegraphTargets = 0;
+        int acceleratedAllies = 0;
+        for (const ta::Enemy& enemy : sim.enemies()) {
+            const float dx = enemy.pos.x - static_cast<float>(x);
+            const float dy = enemy.pos.y - static_cast<float>(y);
+            if (!enemy.alive || dx * dx + dy * dy > authoredRadius * authoredRadius) continue;
+            ++timelineTargets;
+            const bool anchored = enemy.temporalAnchorValid;
+            const bool telegraph = enemy.telegraphTicks > 0;
+            anchoredTargets += anchored ? 1 : 0;
+            telegraphTargets += telegraph ? 1 : 0;
+            const Color marker = anchored ? neo::Violet : (telegraph ? neo::Red : neo::Blue);
+            brokenRing(renderer, static_cast<int>(enemy.pos.x), static_cast<int>(enemy.pos.y), static_cast<int>(enemy.radius + 7.0f), marker, 1, anchored ? 6 : 4);
+            if (snapshot.skill == ta::SkillId::Rewind && enemy.pathHistoryCount > 0) {
+                line(renderer, static_cast<int>(enemy.pos.x), static_cast<int>(enemy.pos.y), static_cast<int>(enemy.pathHistory[0].x), static_cast<int>(enemy.pathHistory[0].y), neo::Ice, 1);
+            }
+        }
+        if (snapshot.skill == ta::SkillId::Accelerate) {
+            for (const ta::AlliedUnit& unit : sim.alliedUnits()) {
+                const float dx = unit.pos.x - static_cast<float>(x);
+                const float dy = unit.pos.y - static_cast<float>(y);
+                if (!unit.alive || dx * dx + dy * dy > authoredRadius * authoredRadius) continue;
+                ++acceleratedAllies;
+                circle(renderer, static_cast<int>(unit.pos.x), static_cast<int>(unit.pos.y), static_cast<int>(unit.radius + 7.0f), neo::Mint);
+            }
+        }
+        std::string timelineText = "TIMELINE " + std::to_string(timelineTargets);
+        if (snapshot.skill == ta::SkillId::Accelerate) timelineText += " // ALLIES " + std::to_string(acceleratedAllies);
+        else timelineText += " // ANCHOR " + std::to_string(anchoredTargets) + " // TELEGRAPH " + std::to_string(telegraphTargets);
+        if (snapshot.skill == ta::SkillId::Rewind) timelineText += " // PATHS SHOWN";
+        drawTextFitInBox(renderer, "hud.target.timeline", {860, 408, 205, 14}, timelineText, 1, neo::Violet, 4);
+    }
+    const bool plagueSkill = snapshot.skill == ta::SkillId::PatientZero || snapshot.skill == ta::SkillId::VectorSwarm || snapshot.skill == ta::SkillId::Mutation || snapshot.skill == ta::SkillId::RuptureHost || snapshot.skill == ta::SkillId::Quarantine;
+    if (plagueSkill) {
+        int infectedHosts = 0;
+        int eligibleHosts = 0;
+        int bossHosts = 0;
+        for (const ta::Enemy& enemy : sim.enemies()) {
+            const float dx = enemy.pos.x - static_cast<float>(x);
+            const float dy = enemy.pos.y - static_cast<float>(y);
+            if (!enemy.alive || dx * dx + dy * dy > authoredRadius * authoredRadius) continue;
+            if (enemy.infectionTicks > 0) {
+                ++infectedHosts;
+                const Color strainColor = enemy.infectionStrain == 1 ? neo::Red : (enemy.infectionStrain == 2 ? neo::Amber : (enemy.infectionStrain == 3 ? neo::Violet : neo::Mint));
+                brokenRing(renderer, static_cast<int>(enemy.pos.x), static_cast<int>(enemy.pos.y), static_cast<int>(enemy.radius + 8.0f), strainColor, 1, 5);
+            } else if (enemy.boss) {
+                ++bossHosts;
+                circle(renderer, static_cast<int>(enemy.pos.x), static_cast<int>(enemy.pos.y), static_cast<int>(enemy.radius + 7.0f), neo::Red);
+            } else {
+                ++eligibleHosts;
+                circle(renderer, static_cast<int>(enemy.pos.x), static_cast<int>(enemy.pos.y), static_cast<int>(enemy.radius + 6.0f), neo::Muted);
+            }
+        }
+        static constexpr std::array<const char*, 4> strainNames{{"NECROTIC", "RABID", "SPORE", "SYMBIOTIC"}};
+        const std::string plagueText = "HOSTS " + std::to_string(infectedHosts) + " // NEW " + std::to_string(eligibleHosts) + " // BOSS " + std::to_string(bossHosts) + " // " + strainNames[static_cast<std::size_t>(std::clamp(sim.mutationStrain(), 1, 4) - 1)] + " // BIO " + std::to_string(sim.resources().biomass);
+        drawTextFitInBox(renderer, "hud.target.plague", {860, 462, 205, 14}, plagueText, 1, neo::Magenta, 4);
+    }
+    const bool oathSkill = snapshot.skill == ta::SkillId::GuardianWard || snapshot.skill == ta::SkillId::Intercept || snapshot.skill == ta::SkillId::Challenge || snapshot.skill == ta::SkillId::Sanctuary;
+    if (oathSkill) {
+        int protectedAllies = 0;
+        int challengeTargets = 0;
+        for (const ta::AlliedUnit& unit : sim.alliedUnits()) {
+            const float dx = unit.pos.x - static_cast<float>(x);
+            const float dy = unit.pos.y - static_cast<float>(y);
+            if (!unit.alive || dx * dx + dy * dy > authoredRadius * authoredRadius) continue;
+            ++protectedAllies;
+            circle(renderer, static_cast<int>(unit.pos.x), static_cast<int>(unit.pos.y), static_cast<int>(unit.radius + 7.0f), neo::Mint);
+        }
+        for (const ta::Enemy& enemy : sim.enemies()) {
+            const float dx = enemy.pos.x - static_cast<float>(x);
+            const float dy = enemy.pos.y - static_cast<float>(y);
+            if (!enemy.alive || dx * dx + dy * dy > authoredRadius * authoredRadius) continue;
+            if (snapshot.skill == ta::SkillId::Challenge) {
+                ++challengeTargets;
+                circle(renderer, static_cast<int>(enemy.pos.x), static_cast<int>(enemy.pos.y), static_cast<int>(enemy.radius + 7.0f), enemy.boss ? neo::Red : neo::Amber);
+            }
+        }
+        const std::string oathText = snapshot.skill == ta::SkillId::Intercept
+            ? "INTERCEPT // DEFENDER READY"
+            : "PROTECT " + std::to_string(protectedAllies) + " // CHALLENGE " + std::to_string(challengeTargets) + " // RES " + std::to_string(sim.resources().resolve);
+        drawTextFitInBox(renderer, "hud.target.oath", {860, 480, 205, 14}, oathText, 1, neo::Mint, 4);
+    }
+    const bool spatialSkill = snapshot.skill == ta::SkillId::RiftGate || snapshot.skill == ta::SkillId::SpatialCollapse || snapshot.skill == ta::SkillId::Banish || snapshot.skill == ta::SkillId::PhaseExchange || snapshot.skill == ta::SkillId::EventHorizon;
+    if (spatialSkill) {
+        std::string spatialText = "SPACE // INST " + std::to_string(sim.resources().instability);
+        if (snapshot.skill == ta::SkillId::RiftGate) {
+            const int exitX = std::clamp(x + static_cast<int>(snapshot.resolvedValueA), 92, GameSim::Width - 40);
+            const int exitY = std::clamp(y - 18, 24, GameSim::Height - 24);
+            brokenRing(renderer, exitX, exitY, std::max(18, targetRadius / 2), neo::Blue, 2, 5);
+            line(renderer, x, y, exitX, exitY, neo::Blue, 1);
+            spatialText += " // EXIT " + std::to_string(exitX);
+        } else if (snapshot.skill == ta::SkillId::PhaseExchange) spatialText += " // NEED 2 TARGETS";
+        else if (snapshot.skill == ta::SkillId::Banish) spatialText += " // RETURN PATH ARMED";
+        else spatialText += " // DISPLACEMENT FIELD";
+        drawTextFitInBox(renderer, "hud.target.spatial", {860, 498, 205, 14}, spatialText, 1, neo::Blue, 4);
+    }
+    const bool artillerySkill = snapshot.skill == ta::SkillId::SpotterDrone || snapshot.skill == ta::SkillId::MortarBarrage || snapshot.skill == ta::SkillId::RailCannon || snapshot.skill == ta::SkillId::ClusterShell || snapshot.skill == ta::SkillId::WalkingBarrage;
+    if (artillerySkill) {
+        int forecastCount = 0;
+        for (const ta::Enemy& enemy : sim.enemies()) {
+            if (!enemy.alive || enemy.predictedTicks <= 0) continue;
+            ++forecastCount;
+            const int predictedX = static_cast<int>(enemy.predictedPosition.x);
+            const int predictedY = static_cast<int>(enemy.predictedPosition.y);
+            brokenRing(renderer, predictedX, predictedY, static_cast<int>(enemy.radius) + 7, neo::Amber, 1, 5);
+            line(renderer, static_cast<int>(enemy.pos.x), static_cast<int>(enemy.pos.y), predictedX, predictedY, neo::Amber, 1);
+        }
+        drawTextFitInBox(renderer, "hud.target.forecast", {860, 516, 205, 14}, "FORECAST " + std::to_string(forecastCount) + " // DATA " + std::to_string(sim.resources().targetingData) + (sim.artilleristFireSolutionReady() ? " // SOLUTION READY" : ""), 1, neo::Amber, 4);
+    }
+    const bool manipulationSkill = snapshot.skill == ta::SkillId::TreasonMark || snapshot.skill == ta::SkillId::RiotWhisper || snapshot.skill == ta::SkillId::PuppetThread || snapshot.skill == ta::SkillId::FalseOrders;
+    if (manipulationSkill) {
+        int convertible = 0;
+        int confused = 0;
+        int bossResistant = 0;
+        for (const ta::Enemy& enemy : sim.enemies()) {
+            const float dx = enemy.pos.x - static_cast<float>(x);
+            const float dy = enemy.pos.y - static_cast<float>(y);
+            if (!enemy.alive || dx * dx + dy * dy > authoredRadius * authoredRadius) continue;
+            if (enemy.boss) {
+                ++bossResistant;
+                circle(renderer, static_cast<int>(enemy.pos.x), static_cast<int>(enemy.pos.y), static_cast<int>(enemy.radius + 8.0f), neo::Red);
+            } else if (snapshot.skill == ta::SkillId::TreasonMark || snapshot.skill == ta::SkillId::PuppetThread) {
+                if (enemy.allegiance == 0) ++convertible;
+                circle(renderer, static_cast<int>(enemy.pos.x), static_cast<int>(enemy.pos.y), static_cast<int>(enemy.radius + 6.0f), enemy.allegiance == 0 ? neo::Mint : neo::Muted);
+            } else {
+                ++confused;
+                circle(renderer, static_cast<int>(enemy.pos.x), static_cast<int>(enemy.pos.y), static_cast<int>(enemy.radius + 6.0f), neo::Amber);
+            }
+        }
+        drawTextFitInBox(renderer, "hud.target.manipulation", {860, 534, 205, 14}, "CONVERT " + std::to_string(convertible) + " // CONFUSE " + std::to_string(confused) + " // BOSS " + std::to_string(bossResistant), 1, neo::Red, 4);
+    }
+    if (snapshot.skill == ta::SkillId::FlashFlood || snapshot.skill == ta::SkillId::ThermalSurge || snapshot.skill == ta::SkillId::ChainLightning || snapshot.skill == ta::SkillId::EyeOfTheStorm || snapshot.skill == ta::SkillId::Thunderhead) {
+        static constexpr std::array<const char*, 5> stateNames{{"SHOCK", "SOAK", "IGNITE", "FREEZE", "GALE"}};
+        static constexpr std::array<const char*, 8> reactionNames{{"NONE", "ARC", "FREEZE", "SHATTER", "FIRESTORM", "PLASMA", "STEAM", "SUPERCELL"}};
+        const std::uint32_t states = sim.stormTargetStateMask({static_cast<float>(x), static_cast<float>(y)}, authoredRadius);
+        const std::uint32_t reactions = sim.stormTargetReactionMask({static_cast<float>(x), static_cast<float>(y)}, authoredRadius);
+        std::string elementText = "STATE";
+        for (std::size_t index = 0; index < stateNames.size(); ++index) if ((states & (1u << static_cast<unsigned int>(index))) != 0) elementText += " " + std::string(stateNames[index]);
+        std::string reactionText = "REACTION";
+        for (int reaction = 1; reaction < static_cast<int>(reactionNames.size()); ++reaction) if ((reactions & (1u << static_cast<unsigned int>(reaction))) != 0) reactionText += " " + std::string(reactionNames[static_cast<std::size_t>(reaction)]);
+        drawTextFitInBox(renderer, "hud.target.elemental", {860, 570, 205, 14}, elementText, 1, neo::Ice, 4);
+        drawTextFitInBox(renderer, "hud.target.reactions", {860, 552, 205, 14}, reactionText, 1, neo::Amber, 4);
+    }
     if (snapshot.skill == ta::SkillId::PhaseMine || snapshot.skill == ta::SkillId::RuinHex || snapshot.skill == ta::SkillId::ResonancePulse) brokenRing(renderer, x, y, targetRadius, color, 2, snapshot.skill == ta::SkillId::PhaseMine ? 6 : 4);
     else if (snapshot.skill == ta::SkillId::CryoField) drawSkillVisualEvent(renderer, {0, snapshot.skill, ta::SkillVisualPhase::Cast, {static_cast<float>(x), static_cast<float>(y)}, static_cast<float>(targetRadius), 10, snapshot.branchId});
-    else ring(renderer, x, y, snapshot.targetMode == ta::SkillTargetMode::Placement ? targetRadius / 2 : targetRadius, color, 2);
+    else if (snapshot.targetMode == ta::SkillTargetMode::Placement) {
+        const int footprint = std::max(28, targetRadius);
+        chamferOutline(renderer, x - footprint / 2, y - footprint / 2, footprint, footprint, color, std::max(6, footprint / 5), 2);
+        line(renderer, x - footprint / 2, y, x + footprint / 2, y, color, 1);
+    } else ring(renderer, x, y, targetRadius, color, 2);
     line(renderer, x - 12, y, x + 12, y, color, 1);
     line(renderer, x, y - 12, x, y + 12, color, 1);
-    drawText(renderer, x + 16, y - 18, snapshot.cooldownRemaining == 0 ? "CONFIRM" : "COOLDOWN", 1, color);
+    const std::string targetStatus = snapshot.cooldownRemaining > 0 ? "COOLDOWN" : (targetLegal ? (snapshot.targetMode == ta::SkillTargetMode::Placement ? "PLACEMENT LEGAL" : "CONFIRM") : previewError);
+    drawTextFitInBox(renderer, "hud.target.status", {860, 590, 205, 16}, targetStatus, 1, color, 4);
     neoPanel(renderer, skillTargetCancelButton.x, skillTargetCancelButton.y, skillTargetCancelButton.width, skillTargetCancelButton.height, neo::Red, false, 5);
     drawText(renderer, skillTargetCancelButton.x + 18, skillTargetCancelButton.y + 12, "CANCEL TARGET", 1, neo::Text);
 }
@@ -693,6 +1582,7 @@ void drawWorld(SDL_Renderer* renderer, const GameSim& sim) {
         const Color color = skillAccent(zone.ownerSkill);
         if (zone.ownerSkill == ta::SkillId::GravityWell) { brokenRing(renderer, x, y, radius, color, 2, 3); ring(renderer, x, y, std::max(8, radius / 3), neo::Text, 1); for (int index = 0; index < 4; ++index) line(renderer, x + (index - 2) * 16, y - radius / 2, x, y, color, 1); }
         else if (zone.ownerSkill == ta::SkillId::PhaseMine) { brokenRing(renderer, x, y, radius, color, 1, 6); hexagon(renderer, x, y, 12, color, 2); cross(renderer, x, y, 7, color, 1); }
+        else if (zone.ownerSkill == ta::SkillId::RiftGate) { brokenRing(renderer, x, y, radius, color, 2, 5); const int exitX = static_cast<int>(zone.secondaryCenter.x); const int exitY = static_cast<int>(zone.secondaryCenter.y); brokenRing(renderer, exitX, exitY, radius, color, 2, 5); line(renderer, x, y, exitX, exitY, color, 1); }
         else if (zone.ownerSkill == ta::SkillId::CryoField) drawSkillVisualEvent(renderer, {0, zone.ownerSkill, ta::SkillVisualPhase::Cast, zone.center, zone.radius, 10, {}});
         else if (zone.ownerSkill == ta::SkillId::ResonancePulse) drawSkillVisualEvent(renderer, {0, zone.ownerSkill, ta::SkillVisualPhase::Cast, zone.center, zone.radius, 10, {}});
         else ring(renderer, x, y, radius, color, 2);
@@ -701,7 +1591,19 @@ void drawWorld(SDL_Renderer* renderer, const GameSim& sim) {
         const int x = static_cast<int>(building.pos.x);
         const int y = static_cast<int>(building.pos.y);
         const Color color = building.ownerSkill == ta::SkillId::SentryFabricator ? neo::Cyan : neo::Mint;
-        if (building.ownerSkill == ta::SkillId::SentryFabricator) {
+        if (building.role == "trap") {
+            filledHexagon(renderer, x, y, 18, neo::Amber);
+            hexagon(renderer, x, y, 25, building.charges > 0 ? color : neo::Red, 2);
+            cross(renderer, x, y, 8, neo::Text, 1);
+            for (int charge = 0; charge < std::min(3, building.charges); ++charge) circle(renderer, x - 10 + charge * 10, y + 29, 3, neo::Amber);
+            if (building.linkedBuildingId != 0) {
+                const auto linked = std::find_if(sim.deployableBuildings().begin(), sim.deployableBuildings().end(), [&](const ta::DeployableBuilding& candidate) { return candidate.alive && candidate.id == building.linkedBuildingId; });
+                if (linked != sim.deployableBuildings().end()) {
+                    line(renderer, x, y, static_cast<int>(linked->pos.x), static_cast<int>(linked->pos.y), neo::Cyan, 1);
+                    if (building.linkedPrimeTicks > 0) brokenRing(renderer, x, y, 31, neo::Cyan, 2, 4);
+                }
+            }
+        } else if (building.ownerSkill == ta::SkillId::SentryFabricator) {
             filledHexagon(renderer, x, y, 22, color);
             hexagon(renderer, x, y, 30, neo::Text, 2);
             line(renderer, x, y, x + (building.role == "mortar" ? 10 : 18), y - (building.role == "mortar" ? 18 : 8), building.role == "mortar" ? neo::Amber : color, 3);
@@ -741,6 +1643,15 @@ void drawWorld(SDL_Renderer* renderer, const GameSim& sim) {
         const int radius = static_cast<int>(enemy.radius);
         if (enemy.slow > 0) body = neo::Ice;
         if (enemy.vulnerabilityTicks > 0) { brokenRing(renderer, x, y, radius + 8, neo::Magenta, 1, enemy.stun > 0.0f ? 6 : 4); if (enemy.vulnerability > 0.35f) { line(renderer, x - radius - 3, y - radius - 3, x - 3, y - 3, neo::Text, 1); line(renderer, x + 3, y + 3, x + radius + 3, y + radius + 3, neo::Text, 1); } }
+        if (enemy.infectionTicks > 0) { const Color strainColor = enemy.infectionStrain == 1 ? neo::Red : (enemy.infectionStrain == 2 ? neo::Amber : (enemy.infectionStrain == 3 ? neo::Violet : neo::Mint)); brokenRing(renderer, x, y, radius + 5, strainColor, 1, 5); }
+        if (enemy.predictedTicks > 0) {
+            cross(renderer, x, y, radius + 9, neo::Amber, 1); circle(renderer, x, y, radius + 10, neo::Amber);
+            const int predictedX = static_cast<int>(enemy.predictedPosition.x);
+            const int predictedY = static_cast<int>(enemy.predictedPosition.y);
+            brokenRing(renderer, predictedX, predictedY, radius + 5, neo::Amber, 1, 4);
+            line(renderer, x, y, predictedX, predictedY, neo::Amber, 1);
+        }
+        if (enemy.bountyId != 0) { brokenRing(renderer, x, y, radius + 12, neo::Amber, 2, 8); cross(renderer, x, y, 5, neo::Text, 1); }
         if (enemy.slow > 0.0f) line(renderer, x - radius, y + radius + 4, x + radius, y + radius + 4, neo::Ice, 2);
         if (enemy.stun > 0.0f) hexagon(renderer, x, y, radius + 6, neo::Ice, 2);
         switch (enemy.type) {
@@ -1071,14 +1982,79 @@ void drawWorkshopScreen(SDL_Renderer* renderer, const ta::ProfileData& profile, 
             drawText(renderer, button.x + 8, button.y + 40, "C" + std::to_string(ta::skillNodeCost(profile, node)) + " // T" + std::to_string(node.tier), 1, neo::Amber);
         } else drawText(renderer, button.x + 8, button.y + 28, "TREE COMPLETE", 1, neo::Mint);
     }
+    static constexpr std::array<const char*, 15> groupNames{{"ARCANIST", "LEGION", "BLOODBINDER", "USURPER", "ARCHITECT", "STORMCALLER", "CHRONOMANCER", "BOUNTY HUNTER", "PLAGUEWRIGHT", "SALVAGER", "BEASTMASTER", "ARTILLERIST", "VOID SHEPHERD", "OATHKEEPER", "FATEBINDER"}};
+    static constexpr std::array<const char*, 15> groupIds{{"arcanist", "legion", "bloodbinder", "usurper", "architect", "stormcaller", "chronomancer", "bounty_hunter", "plaguewright", "salvager", "beastmaster", "artillerist", "void_shepherd", "oathkeeper", "fatebinder"}};
+    std::array<int, 15> groupCounts{};
+    if (content.skillMetadata) for (const ta::SkillId skill : profile.skillLoadout.skills) {
+        const auto& groups = content.skillMetadata->at(static_cast<std::size_t>(skill)).synergyGroups;
+        for (std::size_t group = 0; group < groupIds.size(); ++group) if (std::find(groups.begin(), groups.end(), groupIds[group]) != groups.end()) ++groupCounts[group];
+    }
+    std::size_t dominantGroup = 0;
+    for (std::size_t group = 1; group < groupCounts.size(); ++group) if (groupCounts[group] > groupCounts[dominantGroup]) dominantGroup = group;
+    neoPanel(renderer, workshopClassSummaryPanel.x, workshopClassSummaryPanel.y, workshopClassSummaryPanel.width, workshopClassSummaryPanel.height, neo::Cyan, groupCounts[dominantGroup] >= 3, 6);
+    drawTextFitInBox(renderer, "workshop.classSummary.title", {714, 552, 360, 14}, "ACTIVE CLASS PACKAGE", 1, neo::Cyan);
+    drawTextFitInBox(renderer, "workshop.classSummary.name", {714, 570, 360, 16}, std::string(groupNames[dominantGroup]) + " // " + std::to_string(groupCounts[dominantGroup]) + "/5 MATCHING", 1, neo::Text);
+    drawMenuButton(renderer, workshopClassOverviewButton, "OPEN OVERVIEW // TAB", neo::Amber);
     drawTextFitInBox(renderer, "workshop.purchaseHelp", UiRect{700, 516, 390, 16}, "BUY TOWER / MODULE / SUPPORT / SKILL NODES", 1, neo::Muted);
     drawTextFitInBox(renderer, "workshop.skillUnlockHelp", UiRect{160, 674, 930, 16}, "UNLOCK SKILLS 6-9 FROM THE KEYBOARD // COSTS CORE PARTS // DAILY SKILLS ARE LOANED", 1, neo::Amber);
     drawMenuButton(renderer, workshopBackButton, "BACK", neo::Cyan);
 }
 
+void drawWorkshopClassOverview(SDL_Renderer* renderer, ta::Ultimate ultimate, const ta::ContentConfig& content, int groupIndex) {
+    static constexpr std::array<const char*, 15> ids{{"arcanist", "legion", "bloodbinder", "usurper", "architect", "stormcaller", "chronomancer", "bounty_hunter", "plaguewright", "salvager", "beastmaster", "artillerist", "void_shepherd", "oathkeeper", "fatebinder"}};
+    static constexpr std::array<const char*, 15> names{{"ARCANIST", "LEGION COMMANDER", "BLOODBINDER", "USURPER", "FORTRESS ARCHITECT", "STORMCALLER", "CHRONOMANCER", "BOUNTY HUNTER", "PLAGUEWRIGHT", "SALVAGER", "BEASTMASTER", "ARTILLERIST", "VOID SHEPHERD", "OATHKEEPER", "FATEBINDER"}};
+    static constexpr std::array<const char*, 15> loops{{
+        "Build Sequence with fast casts, then snapshot it in a consuming finisher.",
+        "Create replaceable bodies and convert formation size into timed orders.",
+        "Spend tower health for power, then recover through controlled sacrifice.",
+        "Turn enemies against one another while managing Discord and boss fallbacks.",
+        "Shape routes with blockers, traps, and structures before the wave arrives.",
+        "Apply elemental states in order and trigger reactions without wasting setup.",
+        "Move hostile and allied events along the timeline while managing Paradox.",
+        "Mark priority targets, complete visible objectives, and collect Trophies.",
+        "Spread, mutate, contain, and rupture infections before they overrun the lane.",
+        "Convert remains into Scrap, then turn wave debris into temporary machinery.",
+        "Protect one persistent bonded pet and improve its basic attacks and traits.",
+        "Predict future positions and schedule delayed bombardments for accurate impacts.",
+        "Move enemies through deterministic portals and spatial displacements.",
+        "Complete defensive vows to turn clean protection into Resolve and Judgments.",
+        "Preview and reorder deterministic Fate events before wagering on them."
+    }};
+    const int selected = std::clamp(groupIndex, 0, 14);
+    std::vector<std::string> skills;
+    if (content.skillMetadata) for (std::size_t index = 0; index < content.skillMetadata->size(); ++index) {
+        const auto& metadata = content.skillMetadata->at(index);
+        if (std::find(metadata.synergyGroups.begin(), metadata.synergyGroups.end(), ids[static_cast<std::size_t>(selected)]) != metadata.synergyGroups.end()) skills.push_back(ta::skillName(static_cast<ta::SkillId>(index)));
+    }
+    neoPanel(renderer, workshopClassOverviewPanel.x, workshopClassOverviewPanel.y, workshopClassOverviewPanel.width, workshopClassOverviewPanel.height, neo::Cyan, false, 12);
+    drawTextFitInBox(renderer, "workshop.classOverview.title", {170, 132, 940, 26}, std::string("CLASS OVERVIEW // ") + names[static_cast<std::size_t>(selected)], 2, neo::Text);
+    drawTextFitInBox(renderer, "workshop.classOverview.package", {170, 168, 940, 16}, "PACKAGE " + std::to_string(selected + 1) + "/15 // ULTIMATE CONTEXT // " + std::string(ta::ultimateName(ultimate)), 1, neo::Cyan);
+    drawWrappedTextInBox(renderer, "workshop.classOverview.loop", {170, 210, 940, 38}, loops[static_cast<std::size_t>(selected)], 1, neo::Text, 10, 18);
+    drawTextFitInBox(renderer, "workshop.classOverview.skillsTitle", {170, 278, 430, 18}, "COMPATIBLE SKILLS", 1, neo::Amber);
+    for (std::size_t index = 0; index < skills.size() && index < 8u; ++index) drawTextFitInBox(renderer, "workshop.classOverview.skill", {190, 306 + static_cast<int>(index) * 28, 410, 20}, std::to_string(index + 1) + " // " + skills[index], 1, neo::Text);
+    drawTextFitInBox(renderer, "workshop.classOverview.doctrineTitle", {650, 278, 430, 18}, "DOCTRINE THRESHOLD", 1, neo::Violet);
+    drawWrappedTextInBox(renderer, "workshop.classOverview.doctrine", {650, 306, 430, 80}, "Equip three or more skills from this package to unlock its mutually exclusive doctrine choices. Bridge skills appear in every authored package they support, and mixed builds remain legal.", 1, neo::Text, 10, 18);
+    drawWrappedTextInBox(renderer, "workshop.classOverview.ultimate", {650, 410, 430, 72}, "The ultimate remains separate from the five skill slots. The Loadout screen marks it RESONANT when the equipped class identity matches its authored interaction.", 1, neo::Muted, 10, 18);
+    drawTextFitInBox(renderer, "workshop.classOverview.nodes", {170, 570, 920, 18}, "TALENTS ARE PURCHASED PER SKILL // GENERIC NODES BRANCH INTO SPECIALIZATIONS", 1, neo::Amber);
+    drawMenuButton(renderer, workshopClassOverviewPrevious, "PREVIOUS", neo::Cyan);
+    drawMenuButton(renderer, workshopClassOverviewNext, "NEXT", neo::Cyan);
+    drawMenuButton(renderer, workshopBackButton, "CLOSE OVERVIEW", neo::Cyan);
+}
+
 void drawWorkshopSkillTree(SDL_Renderer* renderer, const ta::ProfileData& profile, int slot, const ta::ContentConfig& content) {
     if (slot < 0 || slot >= static_cast<int>(ta::SkillSlotCount)) return;
     const std::vector<int> nodes = skillTreeNodeIndices(content, slot, profile);
+    const auto nodePreview = [](const ta::SkillNodeDefinition& node) {
+        std::string preview = node.description;
+        const auto append = [&preview](const std::string& value) { preview += (preview.empty() ? "" : " // ") + value; };
+        if (node.valueScale != 1.0f) append("VALUE x" + std::to_string(node.valueScale).substr(0, 4));
+        if (node.radiusScale != 1.0f) append("RADIUS x" + std::to_string(node.radiusScale).substr(0, 4));
+        if (node.durationScale != 1.0f) append("DURATION x" + std::to_string(node.durationScale).substr(0, 4));
+        if (node.cooldownScale != 1.0f) append("COOLDOWN x" + std::to_string(node.cooldownScale).substr(0, 4));
+        if (node.chargesDelta != 0) append("CHARGES " + std::string(node.chargesDelta > 0 ? "+" : "") + std::to_string(node.chargesDelta));
+        if (node.basicDamageScale != 1.0f) append("PET BASIC x" + std::to_string(node.basicDamageScale).substr(0, 4));
+        return preview;
+    };
     chamferFill(renderer, 80, 105, 1120, 560, {neo::Void.r, neo::Void.g, neo::Void.b, 250}, 18);
     chamferOutline(renderer, 80, 105, 1120, 560, neo::Violet, 18, 2);
     drawTextFitInBox(renderer, "skillTree.title", UiRect{130, 126, 900, 18}, "SKILL TREE // " + std::string(ta::skillName(profile.skillLoadout.skills[static_cast<std::size_t>(slot)])), 2, neo::Text);
@@ -1092,8 +2068,10 @@ void drawWorkshopSkillTree(SDL_Renderer* renderer, const ta::ProfileData& profil
         const Color accent = node.tier >= 2 ? neo::Violet : neo::Cyan;
         neoPanel(renderer, button.x, button.y, button.width, button.height, accent, active, 6);
         drawTextFitInBox(renderer, "skillTree.nodeName", UiRect{button.x + 10, button.y + 6, button.width - 20, 16}, node.display, 1, parentOwned ? neo::Text : neo::Muted);
-        drawText(renderer, button.x + 10, button.y + 29, "T" + std::to_string(node.tier) + " // " + (rank > 0 ? "OWNED R" + std::to_string(rank) : (parentOwned ? "C" + std::to_string(ta::skillNodeCost(profile, node)) : "LOCKED")), 1, rank > 0 ? neo::Mint : (parentOwned ? neo::Amber : neo::Muted));
-        drawTextFitInBox(renderer, "skillTree.nodeBranch", UiRect{button.x + 10, button.y + 48, button.width - 20, 16}, node.branchId + " // " + node.iconLayer, 1, neo::Cyan);
+        drawTextFitInBox(renderer, "skillTree.nodeStatus", UiRect{button.x + 10, button.y + 29, button.width - 20, 16},
+                         "T" + std::to_string(node.tier) + " // " + node.branchId + " // " + (rank > 0 ? "OWNED R" + std::to_string(rank) : (parentOwned ? "C" + std::to_string(ta::skillNodeCost(profile, node)) : "LOCKED")),
+                         1, rank > 0 ? neo::Mint : (parentOwned ? neo::Amber : neo::Muted));
+        drawTextFitInBox(renderer, "skillTree.nodePreview", UiRect{button.x + 10, button.y + 48, button.width - 20, 16}, nodePreview(node), 1, neo::Cyan);
     }
     drawWrappedTextInBox(renderer, "workshop.skillDescription", UiRect{120, 495, 780, 64}, ta::skillDescription(profile.skillLoadout.skills[static_cast<std::size_t>(slot)]), 1, neo::Text, 10, 18);
     drawTextFitInBox(renderer, "skillTree.currentBuild", UiRect{130, 562, 760, 16}, "CURRENT BUILD // " + (profile.skillLoadout.nodeBuilds[static_cast<std::size_t>(slot)].empty() ? std::string("BASE SKILL") : profile.skillLoadout.nodeBuilds[static_cast<std::size_t>(slot)]), 1, neo::Amber);
@@ -1362,7 +2340,321 @@ void drawLoadoutTooltip(SDL_Renderer* renderer, int x, int y, const GameSim& sim
     (void)sim;
 }
 
-void drawLoadout(SDL_Renderer* renderer, const GameSim& sim, const ta::ProfileData& profile, const ta::DailyChallenge& daily, bool dailyMode) {
+bool skillTagMatchesUltimate(const std::string& skillTag, const std::string& ultimateTag) {
+    if (skillTag == ultimateTag) return true;
+    // A few authored tags deliberately use the concrete combat term while
+    // ultimate metadata uses the broader build-facing term.
+    return (skillTag == "shock" && ultimateTag == "electric") ||
+           (skillTag == "electric" && ultimateTag == "shock") ||
+           (skillTag == "direct" && ultimateTag == "burst") ||
+           (skillTag == "burst" && ultimateTag == "direct") ||
+           (skillTag == "summon" && ultimateTag == "ally") ||
+           (skillTag == "ally" && ultimateTag == "summon") ||
+           (skillTag == "freeze" && ultimateTag == "control") ||
+           (skillTag == "slow" && ultimateTag == "control") ||
+           (skillTag == "control" && (ultimateTag == "freeze" || ultimateTag == "slow"));
+}
+
+bool skillCompatibleWithSelectedUltimate(const GameSim& sim, int skillIndex) {
+    if (skillIndex < 0 || skillIndex >= static_cast<int>(ta::SkillId::Count)) return false;
+    const auto& definition = sim.contentConfig().skillDefinitions[static_cast<std::size_t>(skillIndex)];
+    std::vector<std::string> ultimateTags;
+    const auto appendTags = [&ultimateTags](const std::vector<std::string>& tags) {
+        for (const std::string& tag : tags) if (std::find(ultimateTags.begin(), ultimateTags.end(), tag) == ultimateTags.end()) ultimateTags.push_back(tag);
+    };
+    appendTags(sim.contentConfig().ultimateMetadata[static_cast<std::size_t>(sim.ultimate())].synergyTags);
+    if (sim.ultimateEvolution() != ta::UltimateEvolution::None) {
+        const std::size_t evolutionIndex = static_cast<std::size_t>(sim.ultimateEvolution()) - 1u;
+        if (evolutionIndex < sim.contentConfig().evolutionMetadata.size()) appendTags(sim.contentConfig().evolutionMetadata[evolutionIndex].synergyTags);
+    }
+    for (const std::string& skillTag : definition.tags) for (const std::string& ultimateTag : ultimateTags) if (skillTagMatchesUltimate(skillTag, ultimateTag)) return true;
+    return false;
+}
+
+int skillBrowserRelevance(const GameSim& sim, int skillIndex, const std::string& query) {
+    if (query.empty()) return 0;
+    const std::string needle = ta::ui::skillBrowserNormalize(query);
+    if (needle.empty()) return 0;
+    const auto& definition = sim.contentConfig().skillDefinitions[static_cast<std::size_t>(skillIndex)];
+    const std::array<std::string, 3> fields{{ta::ui::skillBrowserNormalize(definition.id), ta::ui::skillBrowserNormalize(definition.display), ta::ui::skillBrowserNormalize(definition.shortDescription)}};
+    int score = 0;
+    for (const std::string& field : fields) {
+        if (field == needle) score = std::max(score, 1000);
+        else if (field.rfind(needle, 0) == 0) score = std::max(score, 700);
+        else if (field.find(needle) != std::string::npos) score = std::max(score, 400);
+    }
+    return score;
+}
+
+int skillBrowserWorkshopInvestment(const GameSim& sim, const ta::ProfileData* profile, int skillIndex) {
+    if (profile == nullptr) return 0;
+    const std::string skillId = ta::skillIdString(static_cast<ta::SkillId>(skillIndex));
+    int investment = 0;
+    for (const ta::SkillNodeDefinition& node : sim.contentConfig().skillNodes) {
+        if (node.skillId == skillId) investment += ta::purchasedSkillNodeRank(*profile, node.id);
+    }
+    return investment;
+}
+
+int skillBrowserRecommendedSynergy(const GameSim& sim, int skillIndex) {
+    if (!sim.contentConfig().skillMetadata || skillIndex < 0 || skillIndex >= static_cast<int>(sim.contentConfig().skillMetadata->size())) return 0;
+    const ta::SkillLoadoutIdentity identity = sim.skillLoadoutIdentity();
+    const auto& metadata = sim.contentConfig().skillMetadata->at(static_cast<std::size_t>(skillIndex));
+    int score = 0;
+    for (const std::string& group : metadata.synergyGroups) {
+        if (group == identity.primaryGroup) score += 100;
+        else if (group == identity.secondaryGroup) score += 60;
+        else if (std::find(identity.activeGroups.begin(), identity.activeGroups.end(), group) != identity.activeGroups.end()) score += 25;
+    }
+    if (skillCompatibleWithSelectedUltimate(sim, skillIndex)) score += 15;
+    if (!metadata.equippedPassiveId.empty()) score += 5;
+    return score;
+}
+
+int skillBrowserUnlockRecency(const ta::ProfileData* profile, int skillIndex) {
+    if (profile == nullptr) return 0;
+    const auto found = std::find(profile->skillUnlockOrder.begin(), profile->skillUnlockOrder.end(), static_cast<std::uint8_t>(skillIndex));
+    if (found == profile->skillUnlockOrder.end()) return 0;
+    return static_cast<int>(std::distance(profile->skillUnlockOrder.begin(), found)) + 1;
+}
+
+std::vector<int> skillBrowserResults(const GameSim& sim, const std::string& query, const std::string& classFilter,
+                                     const ta::ProfileData* profile = nullptr) {
+    std::vector<int> results;
+    for (int index = 0; index < static_cast<int>(ta::SkillId::Count); ++index) {
+        const ta::SkillDefinition& definition = sim.contentConfig().skillDefinitions[static_cast<std::size_t>(index)];
+        std::vector<std::string> fields{definition.id, definition.display, definition.shortDescription, definition.longDescription, definition.effect};
+        const ta::SkillId skill = static_cast<ta::SkillId>(index);
+        const bool unlocked = profile != nullptr && ta::isSkillUnlocked(*profile, skill);
+        const bool equipped = profile != nullptr && std::find(profile->skillLoadout.skills.begin(), profile->skillLoadout.skills.end(), skill) != profile->skillLoadout.skills.end();
+        if (classFilter == "FAVORITES" && (profile == nullptr || !ta::isSkillFavorite(*profile, skill))) continue;
+        if (classFilter == "UNLOCKED" && !unlocked) continue;
+        if (classFilter == "LOCKED" && unlocked) continue;
+        if (classFilter == "EQUIPPED" && !equipped) continue;
+        if (classFilter == "UNEQUIPPED" && equipped) continue;
+        if (classFilter == "ULTIMATE:COMPATIBLE" && !skillCompatibleWithSelectedUltimate(sim, index)) continue;
+        if (classFilter.rfind("TARGET:", 0) == 0 && definition.targetMode != classFilter.substr(7)) continue;
+        if (classFilter.rfind("ROLE:", 0) == 0 && std::find(definition.tags.begin(), definition.tags.end(), classFilter.substr(5)) == definition.tags.end()) continue;
+        if (classFilter == "RESOURCE:GENERATOR" && definition.resourceRefund <= 0) continue;
+        if (classFilter == "RESOURCE:CONSUMER" && definition.resourceCost <= 0) continue;
+        if (classFilter == "PASSIVE" && (!sim.contentConfig().skillMetadata || sim.contentConfig().skillMetadata->at(static_cast<std::size_t>(index)).equippedPassiveId.empty())) continue;
+        if (sim.contentConfig().skillMetadata) {
+            const ta::SkillAuthoredMetadata& metadata = sim.contentConfig().skillMetadata->at(static_cast<std::size_t>(index));
+            fields.insert(fields.end(), metadata.synergyGroups.begin(), metadata.synergyGroups.end());
+            fields.insert(fields.end(), metadata.searchKeywords.begin(), metadata.searchKeywords.end());
+            const bool statusFilter = classFilter == "FAVORITES" || classFilter == "UNLOCKED" || classFilter == "LOCKED" || classFilter == "EQUIPPED" || classFilter == "UNEQUIPPED" || classFilter == "PASSIVE" || classFilter == "ULTIMATE:COMPATIBLE" || classFilter.rfind("TARGET:", 0) == 0 || classFilter.rfind("ROLE:", 0) == 0 || classFilter.rfind("RESOURCE:", 0) == 0;
+            if (!classFilter.empty() && classFilter != "ALL" && !statusFilter && std::find(metadata.synergyGroups.begin(), metadata.synergyGroups.end(), classFilter) == metadata.synergyGroups.end()) continue;
+        }
+        if (skillBrowserMatches(fields, query)) results.push_back(index);
+    }
+    std::stable_sort(results.begin(), results.end(), [&](int left, int right) {
+        if (activeSkillBrowserSort == SkillBrowserSortMode::RecommendedSynergy) {
+            const int leftScore = skillBrowserRecommendedSynergy(sim, left);
+            const int rightScore = skillBrowserRecommendedSynergy(sim, right);
+            if (leftScore != rightScore) return leftScore > rightScore;
+        } else if (activeSkillBrowserSort == SkillBrowserSortMode::Name) {
+            const std::string leftName = ta::ui::skillBrowserNormalize(sim.contentConfig().skillDefinitions[static_cast<std::size_t>(left)].display);
+            const std::string rightName = ta::ui::skillBrowserNormalize(sim.contentConfig().skillDefinitions[static_cast<std::size_t>(right)].display);
+            if (leftName != rightName) return leftName < rightName;
+        } else if (activeSkillBrowserSort == SkillBrowserSortMode::RecentlyUnlocked) {
+            const int leftRecency = skillBrowserUnlockRecency(profile, left);
+            const int rightRecency = skillBrowserUnlockRecency(profile, right);
+            if (leftRecency != rightRecency) return leftRecency > rightRecency;
+        } else if (activeSkillBrowserSort == SkillBrowserSortMode::Cooldown) {
+            const int leftCooldown = sim.contentConfig().skillDefinitions[static_cast<std::size_t>(left)].cooldownTicks;
+            const int rightCooldown = sim.contentConfig().skillDefinitions[static_cast<std::size_t>(right)].cooldownTicks;
+            if (leftCooldown != rightCooldown) return leftCooldown < rightCooldown;
+        } else if (activeSkillBrowserSort == SkillBrowserSortMode::WorkshopInvestment) {
+            const int leftInvestment = skillBrowserWorkshopInvestment(sim, profile, left);
+            const int rightInvestment = skillBrowserWorkshopInvestment(sim, profile, right);
+            if (leftInvestment != rightInvestment) return leftInvestment > rightInvestment;
+        } else {
+            const int leftRelevance = skillBrowserRelevance(sim, left, query);
+            const int rightRelevance = skillBrowserRelevance(sim, right, query);
+            if (leftRelevance != rightRelevance) return leftRelevance > rightRelevance;
+        }
+        return left < right;
+    });
+    return results;
+}
+
+std::vector<std::string> skillBrowserClassFilters(const GameSim& sim) {
+    std::vector<std::string> filters{"ALL", "FAVORITES", "UNLOCKED", "LOCKED", "EQUIPPED", "UNEQUIPPED"};
+    filters.push_back("PASSIVE");
+    filters.push_back("ULTIMATE:COMPATIBLE");
+    std::vector<std::string> targets;
+    std::vector<std::string> roles;
+    bool hasGenerator = false;
+    bool hasConsumer = false;
+    for (std::size_t index = 0; index < sim.contentConfig().skillDefinitions.size(); ++index) {
+        const auto& definition = sim.contentConfig().skillDefinitions[index];
+        if (!definition.targetMode.empty() && std::find(targets.begin(), targets.end(), definition.targetMode) == targets.end()) targets.push_back(definition.targetMode);
+        for (const std::string& tag : definition.tags) if (std::find(roles.begin(), roles.end(), tag) == roles.end()) roles.push_back(tag);
+        hasGenerator = hasGenerator || definition.resourceRefund > 0;
+        hasConsumer = hasConsumer || definition.resourceCost > 0;
+    }
+    for (const std::string& target : targets) filters.push_back("TARGET:" + target);
+    for (const std::string& role : roles) filters.push_back("ROLE:" + role);
+    if (hasGenerator) filters.push_back("RESOURCE:GENERATOR");
+    if (hasConsumer) filters.push_back("RESOURCE:CONSUMER");
+    if (!sim.contentConfig().skillMetadata) return filters;
+    for (const auto& metadata : *sim.contentConfig().skillMetadata) {
+        for (const std::string& group : metadata.synergyGroups) if (std::find(filters.begin(), filters.end(), group) == filters.end()) filters.push_back(group);
+    }
+    std::sort(filters.begin() + 1, filters.end());
+    return filters;
+}
+
+std::string skillReactionContract(const ta::SkillDefinition& definition) {
+    const auto hasOperation = [&definition](const char* operation) {
+        return std::find(definition.operations.begin(), definition.operations.end(), operation) != definition.operations.end();
+    };
+    const bool elemental = std::find(definition.tags.begin(), definition.tags.end(), "elemental") != definition.tags.end();
+    const bool reaction = std::find(definition.tags.begin(), definition.tags.end(), "reaction") != definition.tags.end() || hasOperation("resolve_reaction");
+    if (!elemental && !reaction) return {};
+    std::string contract;
+    const auto add = [&contract](const std::string& line) {
+        if (!contract.empty()) contract += "\n";
+        contract += line;
+    };
+    std::string applies;
+    for (const char* state : {"shock", "soak", "ignite", "freeze", "gale"}) {
+        if (std::find(definition.tags.begin(), definition.tags.end(), state) != definition.tags.end()) {
+            if (!applies.empty()) applies += "+";
+            applies += state;
+        }
+    }
+    add("APPLIES // " + (applies.empty() ? std::string("AUTHORED ELEMENTAL STATE") : applies));
+    if (definition.id == "thermal_surge") add("REACTS WITH // SOAK/FREEZE + SHOCK");
+    else if (definition.id == "chain_lightning") add("REACTS WITH // SHOCK + SOAK + IGNITE");
+    else if (definition.id == "eye_of_the_storm") add("REACTS WITH // PREPARED SHOCK + SOAK");
+    else if (definition.id == "cryo_field") add("REACTS WITH // DIRECT HIT ON FREEZE");
+    else add("REACTS WITH // AUTHORED COMPATIBLE STATES");
+    if (definition.id == "chain_lightning" || definition.id == "thermal_surge" || definition.id == "eye_of_the_storm") add("CONSUMES // MATCHED SETUP STATES");
+    else add("CONSUMES // NONE UNTIL A REACTION RESOLVES");
+    add("LEAVES // PRESERVED STATES FOLLOW AUTHORED REACTION RULES");
+    return contract;
+}
+
+void drawSkillBrowser(SDL_Renderer* renderer, const GameSim& sim, const ta::ProfileData& profile, int selectedSlot,
+                      const std::string& query, const std::string& classFilter, int scrollRow) {
+    const std::vector<int> results = skillBrowserResults(sim, query, classFilter, &profile);
+    const int maxScroll = skillBrowserMaxScrollRows(static_cast<int>(results.size()));
+    scrollRow = std::clamp(scrollRow, 0, maxScroll);
+    neoPanel(renderer, skillBrowserOverlay.x, skillBrowserOverlay.y, skillBrowserOverlay.width, skillBrowserOverlay.height, neo::Cyan, false, 16);
+    drawText(renderer, 160, 92, "SKILL CATALOG // EQUIP SLOT " + std::to_string(selectedSlot + 1), 2, neo::Text);
+    drawTextFitInBox(renderer, "loadout.skill.search", skillBrowserSearch, "SEARCH // " + (query.empty() ? "TYPE SKILL, CLASS, OR TAG" : query), 1, query.empty() ? neo::Muted : neo::Text, 8);
+    drawTextFitInBox(renderer, "loadout.skill.classFilter", skillBrowserClassFilter, "FILTER // " + classFilter, 1, neo::Violet, 8);
+    drawMenuButton(renderer, skillBrowserClose, "CLOSE", neo::Red);
+    drawTextFitInBox(renderer, "loadout.skill.catalogHelp", {160, 665, 700, 14}, "CLICK CARD TO PREVIEW  //  EQUIP FROM DETAILS  //  F FAVORITES  //  F2 SORT  //  F3 CLEAR FILTERS  //  PAGE UP/DOWN", 1, neo::Muted);
+    drawTextFitInBox(renderer, "loadout.skill.catalogCount", {875, 665, 215, 14}, "RESULTS // " + std::to_string(results.size()), 1, neo::Amber, 8);
+    drawTextFitInBox(renderer, "loadout.skill.catalogSort", {875, 682, 215, 14}, std::string("SORT // ") + skillBrowserSortLabel(activeSkillBrowserSort), 1, neo::Violet, 8);
+    neoPanel(renderer, skillBrowserViewport.x - 6, skillBrowserViewport.y - 6, skillBrowserViewport.width + 18, skillBrowserViewport.height + 12, neo::Blue, false, 8);
+    for (int visible = 0; visible < static_cast<int>(results.size()) && visible < skillBrowserColumns * skillBrowserVisibleRows; ++visible) {
+        const int resultIndex = visible + scrollRow * skillBrowserColumns;
+        if (resultIndex >= static_cast<int>(results.size())) break;
+        const int skillIndex = results[static_cast<std::size_t>(resultIndex)];
+        const ta::SkillId skill = static_cast<ta::SkillId>(skillIndex);
+        const UiRect card = skillBrowserCard(visible);
+        const bool unlocked = ta::isSkillUnlocked(profile, skill);
+        const bool equipped = std::find(profile.skillLoadout.skills.begin(), profile.skillLoadout.skills.end(), skill) != profile.skillLoadout.skills.end();
+        const bool preview = activeSkillBrowserSelection == skillIndex;
+        neoPanel(renderer, card.x, card.y, card.width, card.height, preview ? neo::Mint : (unlocked ? neo::Violet : neo::Muted), equipped || preview, 7);
+        drawTextFitInBox(renderer, "loadout.skill.catalog.name", {card.x + 10, card.y + 8, card.width - 20, 16},
+                         std::string(preview ? ">> " : "") + (unlocked ? "" : "LOCK // ") + (ta::isSkillFavorite(profile, skill) ? "* " : "") + std::string(ta::skillName(skill)), 1, unlocked ? neo::Text : neo::Muted);
+        const ta::SkillDefinition& definition = sim.contentConfig().skillDefinitions[static_cast<std::size_t>(skillIndex)];
+        drawTextFitInBox(renderer, "loadout.skill.catalog.description", {card.x + 10, card.y + 27, card.width - 20, 28},
+                         definition.shortDescription.empty() ? definition.longDescription : definition.shortDescription, 1, neo::Muted);
+        std::string groups = "GROUP // ";
+        std::string primaryGroup;
+        if (sim.contentConfig().skillMetadata) {
+            const auto& metadata = sim.contentConfig().skillMetadata->at(static_cast<std::size_t>(skillIndex));
+            if (!metadata.synergyGroups.empty()) primaryGroup = metadata.synergyGroups.front();
+            for (std::size_t group = 0; group < metadata.synergyGroups.size(); ++group) { if (group > 0) groups += ","; groups += metadata.synergyGroups[group]; }
+        }
+        if (!primaryGroup.empty()) drawSkillGroupIcon(renderer, primaryGroup, card.x + 16, card.y + 66);
+        drawTextFitInBox(renderer, "loadout.skill.catalog.groups", {card.x + 28, card.y + 59, card.width - 38, 14}, groups, 1, neo::Cyan);
+    }
+    if (results.empty()) drawText(renderer, skillBrowserViewport.x + 22, skillBrowserViewport.y + 24, "NO SKILLS MATCH THIS FILTER", 1, neo::Amber);
+    const UiRect thumb = skillBrowserScrollbarThumb(static_cast<int>(results.size()), scrollRow);
+    neoPanel(renderer, skillBrowserScrollTrack.x, skillBrowserScrollTrack.y, skillBrowserScrollTrack.width, skillBrowserScrollTrack.height, neo::Deep, false, 3);
+    neoPanel(renderer, thumb.x, thumb.y, thumb.width, thumb.height, neo::Cyan, true, 3);
+    neoPanel(renderer, skillBrowserDetails.x, skillBrowserDetails.y, skillBrowserDetails.width, skillBrowserDetails.height, neo::Violet, false, 8);
+    const int focusedSlot = std::clamp(selectedSlot, 0, static_cast<int>(ta::SkillSlotCount) - 1);
+    const ta::SkillId equippedSkill = profile.skillLoadout.skills[static_cast<std::size_t>(focusedSlot)];
+    const bool previewSelectionValid = activeSkillBrowserSelection >= 0 && activeSkillBrowserSelection < static_cast<int>(ta::SkillId::Count);
+    const ta::SkillId selected = previewSelectionValid ? static_cast<ta::SkillId>(activeSkillBrowserSelection) : equippedSkill;
+    const ta::SkillDefinition& selectedDefinition = sim.contentConfig().skillDefinitions[static_cast<std::size_t>(selected)];
+    ta::SkillSnapshot selectedSnapshot = sim.skillSnapshot(static_cast<std::size_t>(focusedSlot));
+    if (previewSelectionValid) {
+        selectedSnapshot = {};
+        selectedSnapshot.skill = selected;
+        selectedSnapshot.targetMode = skillBrowserTargetMode(selectedDefinition.targetMode);
+        selectedSnapshot.cooldownMaximum = selectedDefinition.cooldownTicks;
+        selectedSnapshot.resolvedDurationTicks = selectedDefinition.durationTicks;
+        selectedSnapshot.resolvedRadius = selectedDefinition.radius;
+        selectedSnapshot.resolvedRange = selectedDefinition.range;
+        selectedSnapshot.resolvedValueA = selectedDefinition.valueA;
+        selectedSnapshot.resolvedValueB = selectedDefinition.valueB;
+        selectedSnapshot.charges = selectedDefinition.charges;
+        selectedSnapshot.maximumCharges = selectedDefinition.charges;
+        selectedSnapshot.resourceId = selectedDefinition.resourceId;
+        selectedSnapshot.resourceCost = selectedDefinition.resourceCost;
+        selectedSnapshot.healthCost = selectedDefinition.healthCost;
+        selectedSnapshot.iconId = selectedDefinition.iconId;
+    }
+    drawTextFitInBox(renderer, "loadout.skill.detail.name", {skillBrowserDetails.x + 14, skillBrowserDetails.y + 16, skillBrowserDetails.width - 28, 18}, ta::skillName(selected), 2, neo::Text);
+    drawTextFitInBox(renderer, "loadout.skill.detail.favorite", {skillBrowserDetails.x + 14, skillBrowserDetails.y + 36, skillBrowserDetails.width - 28, 14},
+                     std::string(ta::isSkillFavorite(profile, selected) ? "* FAVORITED" : "- NOT FAVORITED") + " // PRESS F TO TOGGLE", 1, neo::Amber);
+    drawWrappedTextInBox(renderer, "loadout.skill.detail.description", {skillBrowserDetails.x + 14, skillBrowserDetails.y + 52, skillBrowserDetails.width - 28, 72}, selectedDefinition.longDescription.empty() ? selectedDefinition.shortDescription : selectedDefinition.longDescription, 1, neo::Muted, 0, 16);
+    drawTextFitInBox(renderer, "loadout.skill.detail.cooldown", {skillBrowserDetails.x + 14, skillBrowserDetails.y + 144, skillBrowserDetails.width - 28, 14}, "COOLDOWN // " + std::to_string(selectedSnapshot.cooldownMaximum) + " TICKS", 1, neo::Amber);
+    drawTextFitInBox(renderer, "loadout.skill.detail.target", {skillBrowserDetails.x + 14, skillBrowserDetails.y + 162, skillBrowserDetails.width - 28, 14}, "TARGET // " + selectedDefinition.targetMode, 1, neo::Cyan);
+    const std::string resourceRule = selectedDefinition.resourceCost > 0 ? "COST // " + std::to_string(selectedDefinition.resourceCost) + " " + selectedDefinition.resourceId + (selectedDefinition.resourceRefund > 0 ? " // REFUND " + std::to_string(selectedDefinition.resourceRefund) : "") : "COST // NONE";
+    drawTextFitInBox(renderer, "loadout.skill.detail.resource", {skillBrowserDetails.x + 14, skillBrowserDetails.y + 180, skillBrowserDetails.width - 28, 14}, resourceRule, 1, neo::Amber);
+    drawTextFitInBox(renderer, "loadout.skill.detail.resolved", {skillBrowserDetails.x + 14, skillBrowserDetails.y + 198, skillBrowserDetails.width - 28, 14}, "RANGE // " + std::to_string(static_cast<int>(selectedSnapshot.resolvedRange)) + " // RADIUS // " + std::to_string(static_cast<int>(selectedSnapshot.resolvedRadius)) + " // DUR // " + std::to_string(selectedSnapshot.resolvedDurationTicks), 1, neo::Cyan);
+    const int healthY = selectedDefinition.healthCost > 0 ? 218 : -1;
+    if (healthY > 0) drawTextFitInBox(renderer, "loadout.skill.detail.health", {skillBrowserDetails.x + 14, skillBrowserDetails.y + healthY, skillBrowserDetails.width - 28, 14}, "TOWER HEALTH COST // " + std::to_string(selectedDefinition.healthCost) + " // LEAVES 1 HP", 1, neo::Red);
+    const int passiveY = selectedDefinition.healthCost > 0 ? 238 : 218;
+    const std::string passiveId = sim.contentConfig().skillMetadata && static_cast<std::size_t>(selected) < sim.contentConfig().skillMetadata->size()
+        ? sim.contentConfig().skillMetadata->at(static_cast<std::size_t>(selected)).equippedPassiveId : "NONE";
+    drawWrappedTextInBox(renderer, "loadout.skill.detail.passive", {skillBrowserDetails.x + 14, skillBrowserDetails.y + passiveY, skillBrowserDetails.width - 28, 32},
+                         "EQUIPPED PASSIVE // " + passiveId + " // " + selectedDefinition.shortDescription, 1, neo::Mint, 0, 14);
+    drawTextFitInBox(renderer, "loadout.skill.detail.ultimate", {skillBrowserDetails.x + 14, skillBrowserDetails.y + passiveY + 34, skillBrowserDetails.width - 28, 28},
+                     "ULTIMATE COMPATIBILITY // " + std::string(skillCompatibleWithSelectedUltimate(sim, static_cast<int>(selected)) ? "MATCHES " : "NO DIRECT TAG MATCH // ") + ta::ultimateName(sim.ultimate()), 1, neo::Violet, 0);
+    const std::string reactionContract = skillReactionContract(selectedDefinition);
+    if (!reactionContract.empty()) drawWrappedTextInBox(renderer, "loadout.skill.detail.reactions", {skillBrowserDetails.x + 14, skillBrowserDetails.y + 300, skillBrowserDetails.width - 28, 56}, reactionContract, 1, neo::Amber, 0, 14);
+    std::string classTags = "CLASS TAGS // ";
+    std::string selectedBranches;
+    for (const ta::SkillNodeDefinition& node : sim.contentConfig().skillNodes) {
+        if (node.skillId != ta::skillIdString(selected)) continue;
+        if (node.tier >= 2 && ta::purchasedSkillNodeRank(profile, node.id) > 0 && selectedBranches.find(node.branchId) == std::string::npos) {
+            if (selectedBranches.size() > 0) selectedBranches += ",";
+            selectedBranches += node.branchId;
+        }
+    }
+    if (sim.contentConfig().skillMetadata) {
+        const auto& metadata = sim.contentConfig().skillMetadata->at(static_cast<std::size_t>(selected));
+        for (std::size_t index = 0; index < metadata.synergyGroups.size(); ++index) { if (index > 0) classTags += ","; classTags += metadata.synergyGroups[index]; }
+    } else classTags += "GENERAL";
+    drawTextFitInBox(renderer, "loadout.skill.detail.tags", {skillBrowserDetails.x + 14, skillBrowserDetails.y + 360, skillBrowserDetails.width - 28, 14}, classTags, 1, neo::Cyan, 0);
+    const std::string build = profile.skillLoadout.nodeBuilds[static_cast<std::size_t>(std::clamp(selectedSlot, 0, static_cast<int>(ta::SkillSlotCount) - 1))];
+    drawWrappedTextInBox(renderer, "loadout.skill.detail.build", {skillBrowserDetails.x + 14, skillBrowserDetails.y + 378, skillBrowserDetails.width - 28, 32},
+                         "TALENT BUILD // " + (build.empty() ? std::string("BASE SKILL") : build), 1, neo::Amber, 0, 14);
+    drawTextFitInBox(renderer, "loadout.skill.detail.branch", {skillBrowserDetails.x + 14, skillBrowserDetails.y + 416, skillBrowserDetails.width - 28, 14},
+                     "SPECIALIZATION // " + (selectedBranches.empty() ? std::string("NONE // ONE BRANCH PER RUN") : selectedBranches), 1, neo::Violet, 0);
+    const auto duplicate = std::find(profile.skillLoadout.skills.begin(), profile.skillLoadout.skills.end(), selected);
+    if (!previewSelectionValid) drawTextFitInBox(renderer, "loadout.skill.detail.equipHint", skillBrowserEquip, "SELECT A CARD TO PREVIEW", 1, neo::Muted, 8);
+    else if (duplicate != profile.skillLoadout.skills.end()) {
+        drawTextFitInBox(renderer, "loadout.skill.detail.duplicate", skillBrowserEquip,
+                         "EQUIPPED IN SLOT " + std::to_string(static_cast<int>(duplicate - profile.skillLoadout.skills.begin()) + 1), 1, neo::Mint, 8);
+    } else {
+        const std::string equipLabel = "EQUIP TO SLOT " + std::to_string(focusedSlot + 1);
+        drawMenuButton(renderer, skillBrowserEquip, equipLabel.c_str(), neo::Mint);
+    }
+}
+
+void drawLoadout(SDL_Renderer* renderer, const GameSim& sim, const ta::ProfileData& profile, const ta::DailyChallenge& daily, bool dailyMode,
+                 bool skillBrowserOpen, int skillBrowserSlot, const std::string& skillBrowserQuery, const std::string& skillBrowserClass, int skillBrowserScroll) {
     rect(renderer, 0, 0, GameSim::Width, GameSim::Height, neo::Void);
     chamferOutline(renderer, loadoutFrame.x, loadoutFrame.y, loadoutFrame.width, loadoutFrame.height, {neo::Cyan.r, neo::Cyan.g, neo::Cyan.b, 80}, 20, 1);
     neoPanel(renderer, loadoutPanel.x, loadoutPanel.y, loadoutPanel.width, loadoutPanel.height, neo::Cyan, false, 16);
@@ -1441,12 +2733,35 @@ void drawLoadout(SDL_Renderer* renderer, const GameSim& sim, const ta::ProfileDa
         neoPanel(renderer, card.x, card.y, card.width, card.height, ultimateColors[static_cast<std::size_t>(i)], i == static_cast<int>(sim.ultimate()), 8);
         drawTextFitInBox(renderer, "loadout.ultimate.card", {card.x + 8, card.y + 18, card.width - 16, 14}, locked ? "LOCKED" : ultimateLabels[static_cast<std::size_t>(i)], 1, locked ? neo::Muted : neo::Text);
     }
-    drawTextFitInBox(renderer, "loadout.skills.title", {190, 574, 900, 14}, "ACTIVE SKILLS // CLICK A SLOT TO CYCLE UNLOCKED SKILLS", 1, neo::Violet);
+    const std::vector<ta::ClassDoctrineDefinition> doctrines = ta::availableClassDoctrines(sim.skillLoadoutIdentity());
+    std::string doctrineLine = "DOCTRINE // ";
+    if (doctrines.empty()) doctrineLine += "EQUIP 3 SKILLS FROM A CLASS TO UNLOCK A CHOICE";
+    else {
+        const ta::ClassDoctrineDefinition* active = ta::classDoctrineForId(profile.skillLoadout.doctrineId);
+        doctrineLine += active == nullptr ? "SELECT A CLASS DOCTRINE" : std::string(active->display) + " // " + active->description;
+        doctrineLine += " // CLICK TO CYCLE";
+    }
+    neoPanel(renderer, loadoutDoctrineButton.x, loadoutDoctrineButton.y, loadoutDoctrineButton.width, loadoutDoctrineButton.height, neo::Amber, false, 4);
+    drawTextFitInBox(renderer, "loadout.doctrine", {loadoutDoctrineButton.x + 8, loadoutDoctrineButton.y + 3, loadoutDoctrineButton.width - 16, 14}, doctrineLine, 1, doctrines.empty() ? neo::Muted : neo::Amber);
+    std::string passiveLine = "PASSIVES // ";
+    for (int slot = 0; slot < static_cast<int>(ta::SkillSlotCount); ++slot) {
+        const std::size_t skillIndex = static_cast<std::size_t>(sim.skill(static_cast<std::size_t>(slot)));
+        std::string passive = "NONE";
+        if (sim.contentConfig().skillMetadata && skillIndex < sim.contentConfig().skillMetadata->size() && !sim.contentConfig().skillMetadata->at(skillIndex).equippedPassiveId.empty()) passive = sim.contentConfig().skillMetadata->at(skillIndex).equippedPassiveId;
+        if (slot > 0) passiveLine += " // ";
+        passiveLine += std::to_string(slot + 1) + ":" + passive;
+    }
+    drawTextFitInBox(renderer, "loadout.passive.identity", loadoutPassiveIdentityStrip, passiveLine, 1, neo::Mint);
+    drawTextFitInBox(renderer, "loadout.skills.title", {190, 574, 900, 14}, "ACTIVE SKILLS // SELECT A SLOT TO BROWSE THE CATALOG", 1, neo::Violet);
     for (int slot = 0; slot < static_cast<int>(ta::SkillSlotCount); ++slot) {
         const UiRect button = loadoutSkillButton(slot);
         neoPanel(renderer, button.x, button.y, button.width, button.height, neo::Violet, false, 4);
         drawTextFitInBox(renderer, "loadout.skill.name", {button.x + 8, button.y + 6, button.width - 16, 14}, std::to_string(slot + 1) + " // " + ta::skillName(sim.skill(static_cast<std::size_t>(slot))), 1, neo::Text);
-        drawTextFitInBox(renderer, "loadout.skill.mode", {button.x + 8, button.y + 22, button.width - 16, 14}, ta::skillTargetModeName(sim.skillSnapshot(static_cast<std::size_t>(slot)).targetMode), 1, neo::Muted);
+        const std::size_t skillIndex = static_cast<std::size_t>(sim.skill(static_cast<std::size_t>(slot)));
+        const std::string passive = sim.contentConfig().skillMetadata && skillIndex < sim.contentConfig().skillMetadata->size()
+            ? sim.contentConfig().skillMetadata->at(skillIndex).equippedPassiveId : "NONE";
+        drawTextFitInBox(renderer, "loadout.skill.passive", {button.x + 8, button.y + 22, button.width - 16, 14},
+                         std::string(ta::skillTargetModeName(sim.skillSnapshot(static_cast<std::size_t>(slot)).targetMode)) + " // P " + passive, 1, neo::Muted);
     }
     chamferFill(renderer, loadoutStartButton.x, loadoutStartButton.y, loadoutStartButton.width, loadoutStartButton.height, neo::Mint, 8);
     chamferOutline(renderer, loadoutStartButton.x, loadoutStartButton.y, loadoutStartButton.width, loadoutStartButton.height, neo::Text, 8, 1);
@@ -1454,6 +2769,7 @@ void drawLoadout(SDL_Renderer* renderer, const GameSim& sim, const ta::ProfileDa
     chamferOutline(renderer, loadoutDailyButton.x, loadoutDailyButton.y, loadoutDailyButton.width, loadoutDailyButton.height, neo::Text, 8, 1);
     drawText(renderer, loadoutStartButton.x + 88, loadoutStartButton.y + 14, "START RUN", 2, neo::Void);
     drawText(renderer, loadoutDailyButton.x + 46, loadoutDailyButton.y + 14, "DAILY", 2, neo::Text);
+    if (skillBrowserOpen) drawSkillBrowser(renderer, sim, profile, skillBrowserSlot, skillBrowserQuery, skillBrowserClass, skillBrowserScroll);
 }
 
 std::string nextWaveThreatPreview(const GameSim& sim) {
@@ -1979,6 +3295,49 @@ int main(int argc, char** argv) {
     WorkshopPurchase workshopPurchase = WorkshopPurchase::None;
     int workshopPurchaseIndex = 0;
     int workshopSkillFocus = -1;
+    bool workshopClassOverview = false;
+    int workshopClassOverviewGroup = 0;
+    bool skillBrowserOpen = false;
+    bool skillBrowserSearchFocused = false;
+    bool skillBrowserScrollbarDragging = false;
+    bool skillBrowserTouchDragging = false;
+    int skillBrowserDragOffset = 0;
+    int skillBrowserTouchStartY = 0;
+    int skillBrowserTouchStartScroll = 0;
+    int skillBrowserSlot = 0;
+    int skillBrowserScroll = 0;
+    std::string skillBrowserQuery;
+    std::string skillBrowserClass = "ALL";
+    std::unordered_map<std::string, int> skillBrowserScrollByClass;
+    bool skillBrowserSearchHasRestoreScroll = false;
+    int skillBrowserSearchRestoreScroll = 0;
+    const auto refreshSkillBrowserSelection = [&]() {
+        const std::vector<int> results = skillBrowserResults(sim, skillBrowserQuery, skillBrowserClass, &profile);
+        const bool selectionStillVisible = activeSkillBrowserSelection >= 0 &&
+            std::find(results.begin(), results.end(), activeSkillBrowserSelection) != results.end();
+        if (!selectionStillVisible) activeSkillBrowserSelection = results.empty() ? -1 : results.front();
+    };
+    const auto changeSkillBrowserClass = [&](const std::string& nextClass) {
+        skillBrowserScrollByClass[skillBrowserClass] = skillBrowserScroll;
+        skillBrowserClass = nextClass;
+        const int resultCount = static_cast<int>(skillBrowserResults(sim, skillBrowserQuery, skillBrowserClass, &profile).size());
+        const auto saved = skillBrowserScrollByClass.find(skillBrowserClass);
+        skillBrowserScroll = std::clamp(saved == skillBrowserScrollByClass.end() ? 0 : saved->second, 0, skillBrowserMaxScrollRows(resultCount));
+        refreshSkillBrowserSelection();
+    };
+    const auto moveSkillBrowserSelection = [&](int delta) {
+        const std::vector<int> results = skillBrowserResults(sim, skillBrowserQuery, skillBrowserClass, &profile);
+        if (results.empty()) { activeSkillBrowserSelection = -1; return; }
+        const auto current = std::find(results.begin(), results.end(), activeSkillBrowserSelection);
+        int index = current == results.end() ? 0 : static_cast<int>(current - results.begin());
+        index = std::clamp(index + delta, 0, static_cast<int>(results.size()) - 1);
+        activeSkillBrowserSelection = results[static_cast<std::size_t>(index)];
+        const int row = index / skillBrowserColumns;
+        if (row < skillBrowserScroll) skillBrowserScroll = row;
+        else if (row >= skillBrowserScroll + skillBrowserVisibleRows) skillBrowserScroll = row - skillBrowserVisibleRows + 1;
+        skillBrowserSearchFocused = false;
+        SDL_StopTextInput();
+    };
     const auto clearWorkshopPurchase = [&]() {
         workshopPurchase = WorkshopPurchase::None;
         workshopPurchaseIndex = 0;
@@ -2073,6 +3432,40 @@ int main(int argc, char** argv) {
                 hoverX = event.motion.x;
                 hoverY = event.motion.y;
             }
+            if (event.type == SDL_MOUSEWHEEL && !started && screen == FrontendScreen::Loadout && skillBrowserOpen) {
+                const int resultCount = static_cast<int>(skillBrowserResults(sim, skillBrowserQuery, skillBrowserClass, &profile).size());
+                skillBrowserScroll = std::clamp(skillBrowserScroll - event.wheel.y, 0, skillBrowserMaxScrollRows(resultCount));
+            }
+            if (event.type == SDL_MOUSEMOTION && !started && screen == FrontendScreen::Loadout && skillBrowserOpen && skillBrowserScrollbarDragging) {
+                const int resultCount = static_cast<int>(skillBrowserResults(sim, skillBrowserQuery, skillBrowserClass, &profile).size());
+                skillBrowserScroll = ta::ui::skillBrowserScrollFromPointer(resultCount, event.motion.y, skillBrowserDragOffset);
+            }
+            if (event.type == SDL_FINGERMOTION && !started && screen == FrontendScreen::Loadout && skillBrowserTouchDragging) {
+                int windowWidth = GameSim::DesignWidth;
+                int windowHeight = GameSim::DesignHeight;
+                SDL_GetWindowSize(window, &windowWidth, &windowHeight);
+                const int pointerX = static_cast<int>(event.tfinger.x * static_cast<float>(windowWidth));
+                const int pointerY = static_cast<int>(event.tfinger.y * static_cast<float>(windowHeight));
+                float logicalX = static_cast<float>(pointerX);
+                float logicalY = static_cast<float>(pointerY);
+                SDL_RenderWindowToLogical(renderer, pointerX, pointerY, &logicalX, &logicalY);
+                (void)logicalX;
+                const int resultCount = static_cast<int>(skillBrowserResults(sim, skillBrowserQuery, skillBrowserClass, &profile).size());
+                const int rowDelta = static_cast<int>(std::lround((logicalY - skillBrowserTouchStartY) / static_cast<float>(skillBrowserCardHeight + skillBrowserCardGap)));
+                skillBrowserScroll = std::clamp(skillBrowserTouchStartScroll - rowDelta, 0, skillBrowserMaxScrollRows(resultCount));
+            }
+            if (event.type == SDL_MOUSEBUTTONUP && event.button.button == SDL_BUTTON_LEFT) skillBrowserScrollbarDragging = false;
+            if (event.type == SDL_FINGERUP) skillBrowserTouchDragging = false;
+            if (event.type == SDL_TEXTINPUT && !started && screen == FrontendScreen::Loadout && skillBrowserOpen && skillBrowserSearchFocused) {
+                const bool startingSearch = skillBrowserQuery.empty();
+                if (skillBrowserQuery.empty()) {
+                    skillBrowserSearchRestoreScroll = skillBrowserScroll;
+                    skillBrowserSearchHasRestoreScroll = true;
+                }
+                for (const char character : std::string(event.text.text)) if (std::isalnum(static_cast<unsigned char>(character)) || character == ' ' || character == '-' || character == '_') skillBrowserQuery.push_back(character);
+                skillBrowserScroll = 0;
+                if (startingSearch || !skillBrowserQuery.empty()) refreshSkillBrowserSelection();
+            }
             if (event.type == SDL_CONTROLLERDEVICEADDED && controller == nullptr && SDL_IsGameController(event.cdevice.which)) controller = SDL_GameControllerOpen(event.cdevice.which);
             if (event.type == SDL_CONTROLLERDEVICEREMOVED && controller != nullptr && SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controller)) == event.cdevice.which) {
                 SDL_GameControllerClose(controller);
@@ -2091,8 +3484,8 @@ int main(int argc, char** argv) {
                     case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: mappedKey = static_cast<SDL_Keycode>(profile.inputBindings.key(ta::InputAction::Weapon5)); break;
                     case SDL_CONTROLLER_BUTTON_DPAD_UP: mappedKey = SDLK_UP; break;
                     case SDL_CONTROLLER_BUTTON_DPAD_DOWN: mappedKey = SDLK_DOWN; break;
-                    case SDL_CONTROLLER_BUTTON_LEFTSHOULDER: mappedKey = static_cast<SDL_Keycode>(profile.inputBindings.key(ta::InputAction::Skull1)); break;
-                    case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: mappedKey = static_cast<SDL_Keycode>(profile.inputBindings.key(ta::InputAction::Skull4)); break;
+                    case SDL_CONTROLLER_BUTTON_LEFTSHOULDER: mappedKey = (!started && screen == FrontendScreen::Loadout && skillBrowserOpen) ? SDLK_PAGEUP : static_cast<SDL_Keycode>(profile.inputBindings.key(ta::InputAction::Skull1)); break;
+                    case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: mappedKey = (!started && screen == FrontendScreen::Loadout && skillBrowserOpen) ? SDLK_PAGEDOWN : static_cast<SDL_Keycode>(profile.inputBindings.key(ta::InputAction::Skull4)); break;
                     default: break;
                 }
                 if (mappedKey != SDLK_UNKNOWN) {
@@ -2106,6 +3499,57 @@ int main(int argc, char** argv) {
                 const SDL_Keycode key = event.key.keysym.sym;
                 activeDevice = "KEYBOARD";
                 hoverSince = 0;
+                if (!started && screen == FrontendScreen::Loadout && skillBrowserOpen) {
+                    if (key == SDLK_ESCAPE) {
+                        if (skillBrowserSearchFocused) {
+                            skillBrowserSearchFocused = false;
+                            SDL_StopTextInput();
+                        } else {
+                            skillBrowserOpen = false;
+                            skillBrowserScrollbarDragging = false;
+                            skillBrowserTouchDragging = false;
+                        }
+                    } else if (key == SDLK_f) {
+                        const std::size_t slot = static_cast<std::size_t>(std::clamp(skillBrowserSlot, 0, static_cast<int>(ta::SkillSlotCount) - 1));
+                        const ta::SkillId favorite = activeSkillBrowserSelection >= 0 && activeSkillBrowserSelection < static_cast<int>(ta::SkillId::Count)
+                            ? static_cast<ta::SkillId>(activeSkillBrowserSelection) : profile.skillLoadout.skills[slot];
+                        if (ta::toggleSkillFavorite(profile, favorite)) saveCurrentProfile();
+                    } else if (key == SDLK_BACKSPACE && skillBrowserSearchFocused) {
+                        if (!skillBrowserQuery.empty()) skillBrowserQuery.pop_back();
+                        if (skillBrowserQuery.empty() && skillBrowserSearchHasRestoreScroll) {
+                            skillBrowserScroll = std::clamp(skillBrowserSearchRestoreScroll, 0, skillBrowserMaxScrollRows(static_cast<int>(skillBrowserResults(sim, skillBrowserQuery, skillBrowserClass, &profile).size())));
+                            skillBrowserSearchHasRestoreScroll = false;
+                        } else skillBrowserScroll = 0;
+                        refreshSkillBrowserSelection();
+                    } else if (key == SDLK_UP) {
+                        moveSkillBrowserSelection(-skillBrowserColumns);
+                    } else if (key == SDLK_DOWN) {
+                        moveSkillBrowserSelection(skillBrowserColumns);
+                    } else if (key == SDLK_LEFT) {
+                        moveSkillBrowserSelection(-1);
+                    } else if (key == SDLK_RIGHT) {
+                        moveSkillBrowserSelection(1);
+                    } else if (key == SDLK_PAGEUP) {
+                        moveSkillBrowserSelection(-skillBrowserColumns * skillBrowserVisibleRows);
+                    } else if (key == SDLK_PAGEDOWN) {
+                        moveSkillBrowserSelection(skillBrowserColumns * skillBrowserVisibleRows);
+                    } else if (key == SDLK_TAB) {
+                        const std::vector<std::string> filters = skillBrowserClassFilters(sim);
+                        const auto current = std::find(filters.begin(), filters.end(), skillBrowserClass);
+                        const std::size_t next = current == filters.end() ? 0u : (static_cast<std::size_t>(current - filters.begin()) + 1u) % filters.size();
+                        changeSkillBrowserClass(filters[next]);
+                    } else if (key == SDLK_F2) {
+                        activeSkillBrowserSort = static_cast<SkillBrowserSortMode>((static_cast<int>(activeSkillBrowserSort) + 1) % 6);
+                        skillBrowserScroll = 0;
+                    } else if (key == SDLK_F3) {
+                        skillBrowserQuery.clear();
+                        changeSkillBrowserClass("ALL");
+                        skillBrowserSearchHasRestoreScroll = false;
+                        activeSkillBrowserSort = SkillBrowserSortMode::Relevance;
+                        skillBrowserScroll = 0;
+                    }
+                    continue;
+                }
                 if (!started && !settingsOpen && workshopPurchase == WorkshopPurchase::None && !dailyBriefingExpanded &&
                     (screen == FrontendScreen::MainMenu || screen == FrontendScreen::RunType || screen == FrontendScreen::ModifierSelect)) {
                     const int focusCount = screen == FrontendScreen::MainMenu ? 5 : (screen == FrontendScreen::RunType ? 4 : 2);
@@ -2142,8 +3586,16 @@ int main(int argc, char** argv) {
                          const int count = collectionItemCount(collectionCategory);
                         if (collectionItem < 0) collectionItem = count - 1;
                         if (collectionItem >= count) collectionItem = 0;
+                    } else if (screen == FrontendScreen::Workshop && workshopClassOverview && (key == SDLK_ESCAPE || key == SDLK_BACKSPACE || key == SDLK_TAB)) {
+                        workshopClassOverview = false;
+                    } else if (screen == FrontendScreen::Workshop && workshopClassOverview && (key == SDLK_LEFT || key == SDLK_RIGHT)) {
+                        workshopClassOverviewGroup = (workshopClassOverviewGroup + (key == SDLK_RIGHT ? 1 : 14)) % 15;
                     } else if (screen == FrontendScreen::Workshop && workshopSkillFocus >= 0 && (key == SDLK_ESCAPE || key == SDLK_BACKSPACE)) {
                         workshopSkillFocus = -1;
+                    } else if (screen == FrontendScreen::Workshop && key == SDLK_TAB) {
+                        workshopClassOverview = true;
+                        workshopSkillFocus = -1;
+                        workshopPurchase = WorkshopPurchase::None;
                     } else if (screen == FrontendScreen::Workshop && key >= SDLK_F1 && key <= SDLK_F3) {
                         const std::size_t preset = static_cast<std::size_t>(key - SDLK_F1);
                         if (ta::equipSkillPreset(profile, preset)) { sim.setSkillLoadout(profile.skillLoadout); saveCurrentProfile(); }
@@ -2276,8 +3728,17 @@ int main(int argc, char** argv) {
                     if (key == profile.inputBindings.key(ta::InputAction::Confirm) || key == SDLK_SPACE) {
                         screen = FrontendScreen::ModifierSelect;
                     }
-                 } else {
+                } else {
+                    if (targetingSkillSlot >= 0 && (key == SDLK_LEFT || key == SDLK_RIGHT || key == SDLK_q || key == SDLK_e)) {
+                        const ta::SkillSnapshot targetedSnapshot = sim.skillSnapshot(static_cast<std::size_t>(targetingSkillSlot));
+                        if (targetedSnapshot.skill == ta::SkillId::Mutation) { sim.cycleMutationStrain(key == SDLK_LEFT || key == SDLK_q ? -1 : 1); continue; }
+                    }
                     if (targetingSkillSlot >= 0 && (key == SDLK_ESCAPE || key == SDLK_BACKSPACE)) { targetingSkillSlot = -1; continue; }
+                    if (sim.oathRewardChoiceA() != 0 && (key == SDLK_1 || key == SDLK_2)) {
+                        const int choice = key == SDLK_1 ? sim.oathRewardChoiceA() : sim.oathRewardChoiceB();
+                        if (sim.chooseOathReward(choice)) replay.events.push_back({static_cast<std::uint32_t>(sim.stats().ticks + 1), ta::ReplayAction::OathReward, static_cast<std::uint8_t>(choice)});
+                        continue;
+                    }
                     if (!sim.upgradePending() && key >= SDLK_1 && key <= SDLK_5) {
                         const std::size_t slot = static_cast<std::size_t>(key - SDLK_1);
                         const ta::SkillSnapshot snapshot = sim.skillSnapshot(slot);
@@ -2332,6 +3793,12 @@ int main(int argc, char** argv) {
                     SDL_RenderWindowToLogical(renderer, pointerX, pointerY, &logicalX, &logicalY);
                     x = static_cast<int>(std::lround(logicalX));
                     y = static_cast<int>(std::lround(logicalY));
+                }
+                if (event.type == SDL_FINGERDOWN && !started && screen == FrontendScreen::Loadout && skillBrowserOpen &&
+                    (skillBrowserViewport.contains(x, y) || skillBrowserScrollTrack.contains(x, y))) {
+                    skillBrowserTouchDragging = true;
+                    skillBrowserTouchStartY = y;
+                    skillBrowserTouchStartScroll = skillBrowserScroll;
                 }
                 if (event.type == SDL_FINGERDOWN && !started && screen == FrontendScreen::Loadout) {
                     bool detailTarget = false;
@@ -2427,10 +3894,15 @@ int main(int argc, char** argv) {
                             dailyBriefingExpanded = true;
                         }
                     } else if (screen == FrontendScreen::Workshop) {
-                        if (workshopPurchase != WorkshopPurchase::None) {
+                        if (workshopClassOverview) {
+                            if (workshopClassOverviewPrevious.contains(x, y)) workshopClassOverviewGroup = (workshopClassOverviewGroup + 14) % 15;
+                            else if (workshopClassOverviewNext.contains(x, y)) workshopClassOverviewGroup = (workshopClassOverviewGroup + 1) % 15;
+                            else if (workshopBackButton.contains(x, y)) workshopClassOverview = false;
+                        } else if (workshopPurchase != WorkshopPurchase::None) {
                             if (workshopConfirmCancelButton.contains(x, y)) clearWorkshopPurchase();
                             else if (workshopConfirmAcceptButton.contains(x, y)) commitWorkshopPurchase();
-                        } else if (workshopBackButton.contains(x, y)) screen = FrontendScreen::MainMenu;
+                        } else if (workshopClassOverviewButton.contains(x, y)) { workshopClassOverview = true; workshopSkillFocus = -1; workshopPurchase = WorkshopPurchase::None; }
+                        else if (workshopBackButton.contains(x, y)) screen = FrontendScreen::MainMenu;
                         else for (int preset = 0; preset < 3; ++preset) if (workshopPresetButton(preset).contains(x, y)) { if (ta::equipSkillPreset(profile, static_cast<std::size_t>(preset))) { sim.setSkillLoadout(profile.skillLoadout); saveCurrentProfile(); } }
                         else if (workshopTowerButton.contains(x, y)) { workshopPurchase = WorkshopPurchase::TowerCore; workshopPurchaseIndex = 0; }
                         else for (int index = 0; index < 5; ++index) if (workshopModuleButton(index).contains(x, y)) { workshopPurchase = WorkshopPurchase::WeaponModule; workshopPurchaseIndex = index; }
@@ -2447,6 +3919,63 @@ int main(int argc, char** argv) {
                     continue;
                 }
                 if (!started && screen == FrontendScreen::Loadout) {
+                    if (skillBrowserOpen) {
+                        if (skillBrowserClose.contains(x, y)) {
+                            skillBrowserOpen = false;
+                            skillBrowserSearchFocused = false;
+                            skillBrowserScrollbarDragging = false;
+                            skillBrowserTouchDragging = false;
+                            activeSkillBrowserSelection = -1;
+                            SDL_StopTextInput();
+                        } else if (skillBrowserSearch.contains(x, y)) {
+                            skillBrowserSearchFocused = true;
+                            SDL_StartTextInput();
+                        } else if (skillBrowserClassFilter.contains(x, y)) {
+                            skillBrowserSearchFocused = false;
+                            SDL_StopTextInput();
+                            const std::vector<std::string> filters = skillBrowserClassFilters(sim);
+                            const auto current = std::find(filters.begin(), filters.end(), skillBrowserClass);
+                            const std::size_t next = current == filters.end() ? 0u : (static_cast<std::size_t>(current - filters.begin()) + 1u) % filters.size();
+                            changeSkillBrowserClass(filters[next]);
+                        } else if (skillBrowserEquip.contains(x, y) && activeSkillBrowserSelection >= 0 && activeSkillBrowserSelection < static_cast<int>(ta::SkillId::Count)) {
+                            const ta::SkillId selectedSkill = static_cast<ta::SkillId>(activeSkillBrowserSelection);
+                            const auto duplicate = std::find(profile.skillLoadout.skills.begin(), profile.skillLoadout.skills.end(), selectedSkill);
+                            if (duplicate == profile.skillLoadout.skills.end() && ta::equipSkill(profile, static_cast<std::size_t>(skillBrowserSlot), selectedSkill)) {
+                                sim.setSkillLoadout(profile.skillLoadout);
+                                saveCurrentProfile();
+                                skillBrowserOpen = false;
+                                activeSkillBrowserSelection = -1;
+                                SDL_StopTextInput();
+                            }
+                        } else if (skillBrowserScrollTrack.contains(x, y)) {
+                            const int resultCount = static_cast<int>(skillBrowserResults(sim, skillBrowserQuery, skillBrowserClass, &profile).size());
+                            const int maximum = skillBrowserMaxScrollRows(resultCount);
+                            if (maximum > 0) {
+                                const UiRect thumb = skillBrowserScrollbarThumb(resultCount, skillBrowserScroll);
+                                if (thumb.contains(x, y)) {
+                                    skillBrowserScrollbarDragging = true;
+                                    skillBrowserDragOffset = y - thumb.y;
+                                } else if (y < thumb.y) skillBrowserScroll = std::max(0, skillBrowserScroll - skillBrowserVisibleRows);
+                                else if (y >= thumb.y + thumb.height) skillBrowserScroll = std::min(maximum, skillBrowserScroll + skillBrowserVisibleRows);
+                            }
+                        } else if (skillBrowserViewport.contains(x, y)) {
+                            skillBrowserSearchFocused = false;
+                            SDL_StopTextInput();
+                            const int localColumn = (x - skillBrowserViewport.x) / (skillBrowserCardWidth + skillBrowserCardGap);
+                            const int localRow = (y - skillBrowserViewport.y) / (skillBrowserCardHeight + skillBrowserCardGap);
+                            const int cardX = skillBrowserViewport.x + localColumn * (skillBrowserCardWidth + skillBrowserCardGap);
+                            const int cardY = skillBrowserViewport.y + localRow * (skillBrowserCardHeight + skillBrowserCardGap);
+                            if (localColumn >= 0 && localColumn < skillBrowserColumns && x < cardX + skillBrowserCardWidth && y < cardY + skillBrowserCardHeight) {
+                                const std::vector<int> results = skillBrowserResults(sim, skillBrowserQuery, skillBrowserClass, &profile);
+                                const int resultIndex = (localRow + skillBrowserScroll) * skillBrowserColumns + localColumn;
+                                if (resultIndex >= 0 && resultIndex < static_cast<int>(results.size())) {
+                                    const ta::SkillId selectedSkill = static_cast<ta::SkillId>(results[static_cast<std::size_t>(resultIndex)]);
+                                    activeSkillBrowserSelection = static_cast<int>(selectedSkill);
+                                }
+                            }
+                        }
+                        continue;
+                    }
                     for (int index = 0; index < 3; ++index) if (loadoutChassisCard(index).contains(x, y) && (!dailyMode || !daily.chassisRequired || static_cast<ta::TowerChassis>(index) == daily.requiredChassis)) { sim.setChassis(static_cast<ta::TowerChassis>(index)); profile.equippedChassis = static_cast<std::uint8_t>(index); saveCurrentProfile(); }
                     for (int i = 0; i < 5; ++i) if (loadoutWeaponCard(i).contains(x, y) && (!dailyMode || !daily.weaponRequired || static_cast<ta::Weapon>(i) == daily.requiredWeapon)) { sim.setWeapon(static_cast<ta::Weapon>(i)); if (!dailyMode) { profile.equippedWeapon = static_cast<std::uint8_t>(i); saveCurrentProfile(); } }
                     for (int i = 0; i < 3; ++i) if (loadoutArenaCard(i).contains(x, y) && (!dailyMode || static_cast<ta::Arena>(i) == daily.arena)) sim.setArena(static_cast<ta::Arena>(i));
@@ -2459,7 +3988,32 @@ int main(int argc, char** argv) {
                     }
                     for (int i = 0; i < 5; ++i) if (loadoutUltimateCard(i).contains(x, y) && (!dailyMode || static_cast<ta::Ultimate>(i) == daily.requiredUltimate)) { sim.setUltimate(static_cast<ta::Ultimate>(i)); if (!dailyMode) { profile.equippedUltimate = static_cast<std::uint8_t>(i); profile.equippedUltimateModule = 255u; saveCurrentProfile(); } }
                     for (int i = 0; i < 5; ++i) if (loadoutSupportCard(i).contains(x, y) && (!dailyMode || static_cast<ta::SupportModule>(i) == daily.requiredSupport)) { sim.setSupport(static_cast<ta::SupportModule>(i)); profile.equippedSupportModule = static_cast<std::uint8_t>(i); saveCurrentProfile(); }
-                    if (!dailyMode) for (int slot = 0; slot < static_cast<int>(ta::SkillSlotCount); ++slot) if (loadoutSkillButton(slot).contains(x, y) && cycleSkillLoadout(profile, sim, slot, authoredContent)) saveCurrentProfile();
+                    if (!dailyMode && loadoutDoctrineButton.contains(x, y)) {
+                        const std::vector<ta::ClassDoctrineDefinition> doctrines = ta::availableClassDoctrines(sim.skillLoadoutIdentity());
+                        if (!doctrines.empty()) {
+                            const auto current = std::find_if(doctrines.begin(), doctrines.end(), [&](const ta::ClassDoctrineDefinition& doctrine) { return profile.skillLoadout.doctrineId == doctrine.id; });
+                            const std::size_t next = current == doctrines.end() ? 0u : (static_cast<std::size_t>(current - doctrines.begin()) + 1u) % doctrines.size();
+                            profile.skillLoadout.doctrineId = doctrines[next].id;
+                            sim.setSkillLoadout(profile.skillLoadout);
+                            saveCurrentProfile();
+                        }
+                    }
+                    if (!dailyMode) for (int slot = 0; slot < static_cast<int>(ta::SkillSlotCount); ++slot) if (loadoutSkillButton(slot).contains(x, y)) {
+                        skillBrowserSlot = slot;
+                        skillBrowserOpen = true;
+                        skillBrowserSearchFocused = true;
+                        skillBrowserScrollbarDragging = false;
+                        skillBrowserTouchDragging = false;
+                        skillBrowserSearchHasRestoreScroll = false;
+                        activeSkillBrowserSelection = -1;
+                        skillBrowserScroll = 0;
+                        skillBrowserQuery.clear();
+                        skillBrowserClass = "ALL";
+                        const auto savedBrowserScroll = skillBrowserScrollByClass.find(skillBrowserClass);
+                        if (savedBrowserScroll != skillBrowserScrollByClass.end()) skillBrowserScroll = savedBrowserScroll->second;
+                        refreshSkillBrowserSelection();
+                        SDL_StartTextInput();
+                    }
                     if (loadoutStartButton.contains(x, y)) {
                         dailyMode = false;
                         screen = FrontendScreen::ModifierSelect;
@@ -2553,13 +4107,14 @@ int main(int argc, char** argv) {
             else if (screen == FrontendScreen::Workshop) drawWorkshopScreen(renderer, profile, sim.ultimate(), authoredContent);
             else if (screen == FrontendScreen::Collection) drawCollectionScreen(renderer, collectionCategory, collectionItem, sim.contentConfig());
             else if (screen == FrontendScreen::Settings) drawMainMenu(renderer, profile, daily, 3);
-            else { drawLoadout(renderer, sim, profile, daily, dailyMode); drawSkinStrip(renderer, profile, sim.skin()); }
+            else { drawLoadout(renderer, sim, profile, daily, dailyMode, skillBrowserOpen, skillBrowserSlot, skillBrowserQuery, skillBrowserClass, skillBrowserScroll); drawSkinStrip(renderer, profile, sim.skin()); }
         }
         if (!started && dailyBriefingExpanded) drawDailyBriefingOverlay(renderer, daily, authoredContent, profile, hoverX, hoverY, dailyBriefingFocus);
         if (!started && screen == FrontendScreen::Workshop && workshopSkillFocus >= 0 && workshopPurchase == WorkshopPurchase::None) drawWorkshopSkillTree(renderer, profile, workshopSkillFocus, authoredContent);
+        if (!started && screen == FrontendScreen::Workshop && workshopClassOverview && workshopPurchase == WorkshopPurchase::None) drawWorkshopClassOverview(renderer, sim.ultimate(), authoredContent, workshopClassOverviewGroup);
         if (!started && screen == FrontendScreen::Workshop && workshopPurchase != WorkshopPurchase::None) drawWorkshopConfirmation(renderer, profile, workshopPurchase, workshopPurchaseIndex, sim.ultimate(), authoredContent);
         if (!started && screen == FrontendScreen::Loadout && hoverX >= 0 && hoverY >= 0 && (hoverSince == 0 || SDL_GetTicks() - hoverSince >= 300u)) drawLoadoutTooltip(renderer, hoverX, hoverY, sim);
-        if (started) { drawArena(renderer, highContrast, sim.arena(), authoredContent); drawWorld(renderer, sim); drawSkillTargetPreview(renderer, sim, targetingSkillSlot, hoverX, hoverY); drawHud(renderer, sim, highContrast, profile.subtitles); if (sim.upgradePending()) drawUpgradeOverlay(renderer, sim); if (paused && !settingsOpen) drawPauseOverlay(renderer); drawResultsOverlay(renderer, sim, resultRewardShards, resultRewardCoreParts, resultRewardLegendCores, dailyMode); }
+        if (started) { drawArena(renderer, highContrast, sim.arena(), authoredContent); drawWorld(renderer, sim); drawSkillTargetPreview(renderer, sim, targetingSkillSlot, hoverX, hoverY); drawHud(renderer, sim, highContrast, profile.subtitles, targetingSkillSlot); if (sim.upgradePending()) drawUpgradeOverlay(renderer, sim); if (paused && !settingsOpen) drawPauseOverlay(renderer); drawResultsOverlay(renderer, sim, resultRewardShards, resultRewardCoreParts, resultRewardLegendCores, dailyMode); }
         if (settingsOpen || (!started && screen == FrontendScreen::Settings)) drawSettingsOverlay(renderer, profile, remappingAction, activeDevice);
         SDL_RenderPresent(renderer);
         if (renderSmoke && ++renderedFrames >= 3) running = false;

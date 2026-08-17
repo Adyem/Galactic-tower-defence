@@ -9,6 +9,7 @@
 #include <vector>
 
 namespace {
+constexpr int BalanceTickHorizon = 100000;
 enum class Policy { First, Random, TagMatch, Synergy, ThreatAware, Oracle };
 enum class SkillPolicy { NoSkill, RandomCast, RoleAwareCast, OracleCast };
 
@@ -106,7 +107,17 @@ bool castReadySkills(ta::GameSim& sim, SkillPolicy policy, int tick) {
         } else if (snapshot.targetMode != ta::SkillTargetMode::None) {
             if (policy == SkillPolicy::RandomCast) {
                 target.world = {450.0f + static_cast<float>((decision * 97 + static_cast<int>(slot) * 53) % 680), 80.0f + static_cast<float>((decision * 43 + static_cast<int>(slot) * 31) % 560)};
-            } else target.world = {700.0f, 360.0f};
+            } else {
+                const bool frontlineSummon = snapshot.skill == ta::SkillId::BloodGolem || snapshot.skill == ta::SkillId::VanguardDrop || snapshot.skill == ta::SkillId::ForwardBarracks || snapshot.skill == ta::SkillId::Intercept;
+                const bool bloodArea = snapshot.skill == ta::SkillId::BloodLance || snapshot.skill == ta::SkillId::HemorrhageField || snapshot.skill == ta::SkillId::LastPulse;
+                target.world = {700.0f, 360.0f};
+                if (frontlineSummon || bloodArea) {
+                    const ta::Enemy* frontline = nullptr;
+                    for (const ta::Enemy& enemy : sim.enemies()) if (enemy.alive && (frontline == nullptr || (enemy.boss && !frontline->boss) || (enemy.boss == frontline->boss && enemy.id < frontline->id))) frontline = &enemy;
+                    if (frontline != nullptr) target.world = frontline->pos;
+                }
+                if (snapshot.skill == ta::SkillId::LifeSiphon) for (const ta::AlliedUnit& ally : sim.alliedUnits()) if (ally.alive) { target.world = ally.pos; break; }
+            }
         }
         std::string ignored;
         if (sim.activateSkill(slot, target, &ignored)) { cast = true; break; }
@@ -173,11 +184,12 @@ void printTelemetryCell(const char* label, const Telemetry& result) {
 
 int main(int argc, char** argv) {
     int runsPerCombination = 4;
+    const bool quick = argc > 2 && std::string(argv[2]) == "--quick";
     if (argc > 1) {
         try { runsPerCombination = std::stoi(argv[1]); } catch (...) { runsPerCombination = 0; }
     }
     if (runsPerCombination <= 0 || runsPerCombination > 1000) {
-        std::cerr << "usage: ta_balance_check [runs-per-weapon-arena, 1..1000]\n";
+        std::cerr << "usage: ta_balance_check [runs-per-weapon-arena, 1..1000] [--quick]\n";
         return EXIT_FAILURE;
     }
 
@@ -193,14 +205,19 @@ int main(int argc, char** argv) {
     constexpr std::array<std::uint8_t, 3> profileLevels{{0, 10, 20}};
     std::array<std::array<Telemetry, 3>, 6> results{};
     bool passed = true;
-    for (std::size_t policyIndex = 0; policyIndex < policies.size(); ++policyIndex) {
+    const std::size_t policyCount = quick ? 4u : policies.size();
+    const std::size_t profileCount = quick ? 1u : profileLevels.size();
+    const int combinationCount = quick ? 2 : 16;
+    const int arenaCount = quick ? 1 : 3;
+    const int weaponCount = quick ? 2 : 5;
+    for (std::size_t policyIndex = 0; policyIndex < policyCount; ++policyIndex) {
         const Policy policy = policies[policyIndex];
-        for (std::size_t profileIndex = 0; profileIndex < profileLevels.size(); ++profileIndex) {
+        for (std::size_t profileIndex = 0; profileIndex < profileCount; ++profileIndex) {
         Telemetry result;
-        for (int combination = 0; combination < 16; ++combination) {
+        for (int combination = 0; combination < combinationCount; ++combination) {
             ta::SkullMask mask = 0;
             for (int skull = 1; skull <= 4; ++skull) if ((combination & (1 << (skull - 1))) != 0) mask = static_cast<ta::SkullMask>(mask | (1u << skull));
-            for (int arena = 0; arena < 3; ++arena) for (int weapon = 0; weapon < 5; ++weapon) for (int run = 0; run < runsPerCombination; ++run) {
+            for (int arena = 0; arena < arenaCount; ++arena) for (int weapon = 0; weapon < weaponCount; ++weapon) for (int run = 0; run < runsPerCombination; ++run) {
                 const std::uint32_t seed = 0xC7000000u + static_cast<std::uint32_t>(combination * 100000 + arena * 1000 + weapon * 100 + run + 1);
                 ta::GameSim sim(seed);
                 sim.setContentConfig(content);
@@ -212,7 +229,7 @@ int main(int argc, char** argv) {
                 sim.setWorkshopProgress(profileLevels[profileIndex], moduleLevels);
                 sim.setSupportProgress(moduleLevels);
                 sim.reset(seed);
-                advance(sim, 100000, policy);
+                advance(sim, BalanceTickHorizon, policy);
                 record(result, sim);
             }
         }
@@ -233,25 +250,25 @@ int main(int argc, char** argv) {
         }
     }
     Telemetry randomResult, synergyResult;
-    for (std::size_t profileIndex = 0; profileIndex < profileLevels.size(); ++profileIndex) {
+    for (std::size_t profileIndex = 0; profileIndex < profileCount; ++profileIndex) {
         randomResult = combine(randomResult, results[1][profileIndex]);
         synergyResult = combine(synergyResult, results[3][profileIndex]);
     }
     const double randomVictoryRate = randomResult.total == 0 ? 0.0 : static_cast<double>(randomResult.victories) / static_cast<double>(randomResult.total);
     const double synergyVictoryRate = synergyResult.total == 0 ? 0.0 : static_cast<double>(synergyResult.victories) / static_cast<double>(synergyResult.total);
-    if (randomVictoryRate >= 0.80) {
+    if (!quick && randomVictoryRate >= 0.80) {
         std::cerr << "balance policy failure: random choices are too close to universal victory\n";
         passed = false;
     }
-    if (synergyVictoryRate <= randomVictoryRate) {
+    if (!quick && synergyVictoryRate <= randomVictoryRate) {
         std::cerr << "balance policy failure: synergy policy does not outperform random choices\n";
         passed = false;
     }
     // A per-weapon/per-arena Oracle view prevents the aggregate matrix from
     // hiding a weak weapon behind stronger neighbors. This is also the
     // smallest report that directly corresponds to the authored matrix axes.
-    for (int arena = 0; arena < 3; ++arena) {
-        for (int weapon = 0; weapon < 5; ++weapon) {
+    for (int arena = 0; arena < arenaCount; ++arena) {
+        for (int weapon = 0; weapon < weaponCount; ++weapon) {
             Telemetry cell;
             for (int run = 0; run < runsPerCombination; ++run) {
                 const std::uint32_t seed = 0xD4000000u + static_cast<std::uint32_t>(arena * 1000 + weapon * 100 + run + 1);
@@ -260,7 +277,7 @@ int main(int argc, char** argv) {
                 sim.setArena(static_cast<ta::Arena>(arena));
                 sim.setWeapon(static_cast<ta::Weapon>(weapon));
                 sim.reset(seed);
-                advance(sim, 100000, Policy::Oracle);
+                advance(sim, BalanceTickHorizon, Policy::Oracle);
                 record(cell, sim);
             }
             const std::string label = std::string("oracle/") + ta::arenaName(static_cast<ta::Arena>(arena)) + "/" + ta::weaponName(static_cast<ta::Weapon>(weapon));
@@ -268,14 +285,55 @@ int main(int argc, char** argv) {
             if (cell.nonTerminal != 0) passed = false;
         }
     }
+    const std::array<std::array<ta::SkillId, 5>, 15> pureSkillLoadouts{{
+        {{ta::SkillId::ArcBolt, ta::SkillId::ChainLightning, ta::SkillId::GravityWell, ta::SkillId::CryoField, ta::SkillId::ResonancePulse}},
+        {{ta::SkillId::VanguardDrop, ta::SkillId::ForwardBarracks, ta::SkillId::RallyBeacon, ta::SkillId::DroneSwarm, ta::SkillId::SentryFabricator}},
+        {{ta::SkillId::BloodLance, ta::SkillId::LifeSiphon, ta::SkillId::HemorrhageField, ta::SkillId::BloodGolem, ta::SkillId::LastPulse}},
+        {{ta::SkillId::TreasonMark, ta::SkillId::RiotWhisper, ta::SkillId::PuppetThread, ta::SkillId::FalseOrders, ta::SkillId::SharedAgony}},
+        {{ta::SkillId::BulwarkWall, ta::SkillId::TrapFoundry, ta::SkillId::PhaseMine, ta::SkillId::MineLayer, ta::SkillId::SentryFabricator}},
+        {{ta::SkillId::Thunderhead, ta::SkillId::FlashFlood, ta::SkillId::ThermalSurge, ta::SkillId::EyeOfTheStorm, ta::SkillId::ChainLightning}},
+        {{ta::SkillId::TemporalAnchor, ta::SkillId::Accelerate, ta::SkillId::Delay, ta::SkillId::Rewind, ta::SkillId::BorrowedTime}},
+        {{ta::SkillId::Wanted, ta::SkillId::DeadeyeShot, ta::SkillId::Harpoon, ta::SkillId::ExploitWeakness, ta::SkillId::CollectorDrone}},
+        {{ta::SkillId::PatientZero, ta::SkillId::VectorSwarm, ta::SkillId::Mutation, ta::SkillId::RuptureHost, ta::SkillId::Quarantine}},
+        {{ta::SkillId::ScrapCache, ta::SkillId::MineLayer, ta::SkillId::JuryRiggedTurret, ta::SkillId::StripForParts, ta::SkillId::ImprovisedArsenal}},
+        {{ta::SkillId::AlphaBeast, ta::SkillId::Feed, ta::SkillId::Adaptation, ta::SkillId::PackCall, ta::SkillId::HuntCommand}},
+        {{ta::SkillId::MortarBarrage, ta::SkillId::SpotterDrone, ta::SkillId::RailCannon, ta::SkillId::ClusterShell, ta::SkillId::WalkingBarrage}},
+        {{ta::SkillId::RiftGate, ta::SkillId::SpatialCollapse, ta::SkillId::Banish, ta::SkillId::PhaseExchange, ta::SkillId::EventHorizon}},
+        {{ta::SkillId::GuardianWard, ta::SkillId::Intercept, ta::SkillId::Challenge, ta::SkillId::Sanctuary, ta::SkillId::Judgment}},
+        {{ta::SkillId::LoadedDice, ta::SkillId::Misfortune, ta::SkillId::LuckyShot, ta::SkillId::StackDeck, ta::SkillId::DoubleNothing}}
+    }};
+    std::array<std::uint8_t, 5> classModules{};
+    classModules.fill(20);
+    for (std::size_t classIndex = 0; classIndex < pureSkillLoadouts.size(); ++classIndex) {
+        const std::uint32_t seed = 0xCA000000u + static_cast<std::uint32_t>(classIndex);
+        ta::GameSim classRun(seed);
+        ta::SkillLoadout loadout;
+        loadout.skills = pureSkillLoadouts[classIndex];
+        classRun.setContentConfig(content);
+        classRun.setSkillLoadout(loadout);
+        classRun.setWorkshopProgress(20, classModules);
+        classRun.setSupportProgress(classModules);
+        classRun.reset(seed);
+        advance(classRun, BalanceTickHorizon, Policy::Oracle);
+        std::cout << "Tower Ascend balance pure_class=" << classRun.skillLoadoutIdentity().primaryGroup
+                  << " skills=" << classRun.skillLoadoutIdentity().primaryCount
+                  << " state=" << classRun.statusText() << " wave=" << classRun.waveNumber()
+                  << " lives=" << classRun.livesRemaining() << " leaks=" << classRun.stats().leaks
+                  << " skill_casts=" << classRun.stats().skillCasts
+                  << " skill_healing=" << classRun.stats().skillHealing[static_cast<std::size_t>(ta::SkillId::LifeSiphon)]
+                  << " boss_attacks=" << classRun.stats().bossAttacks << '\n';
+        if (!classRun.isGameOver() && !classRun.isVictory()) passed = false;
+        if (classRun.skillLoadoutIdentity().primaryCount < 5) passed = false;
+    }
     // Every authored Legendary Evolution gets its own deterministic regression
     // cell. This does not replace the broad policy matrix; it verifies that
     // each parent-ultimate specialization is legal, replayable, and terminates
     // under the strongest authored progression fixture.
     std::array<std::uint8_t, 5> maxModules{};
     maxModules.fill(20);
+    const int lastEvolution = quick ? static_cast<int>(ta::UltimateEvolution::ShatteredSky) : static_cast<int>(ta::UltimateEvolution::TerminalDischarge);
     for (int evolutionValue = static_cast<int>(ta::UltimateEvolution::SolarAftermath);
-         evolutionValue <= static_cast<int>(ta::UltimateEvolution::TerminalDischarge); ++evolutionValue) {
+         evolutionValue <= lastEvolution; ++evolutionValue) {
         const ta::UltimateEvolution evolution = static_cast<ta::UltimateEvolution>(evolutionValue);
         const ta::Ultimate ultimate = static_cast<ta::Ultimate>((evolutionValue - 1) / 3);
         ta::GameSim evolutionRun(0xE7000000u + static_cast<std::uint32_t>(evolutionValue));
@@ -285,7 +343,7 @@ int main(int argc, char** argv) {
         evolutionRun.setWorkshopProgress(20, maxModules);
         evolutionRun.setSupportProgress(maxModules);
         evolutionRun.reset(0xE7000000u + static_cast<std::uint32_t>(evolutionValue));
-        advance(evolutionRun, 100000, Policy::Oracle);
+        advance(evolutionRun, BalanceTickHorizon, Policy::Oracle);
         std::cout << "Tower Ascend balance evolution=" << ta::ultimateEvolutionName(evolution)
                   << " parent=" << ta::ultimateName(ultimate)
                   << " state=" << evolutionRun.statusText()
@@ -296,7 +354,7 @@ int main(int argc, char** argv) {
             passed = false;
         }
     }
-    for (int moduleValue = 0; moduleValue < 10; ++moduleValue) {
+    for (int moduleValue = 0; moduleValue < (quick ? 2 : 10); ++moduleValue) {
         const ta::Ultimate ultimate = static_cast<ta::Ultimate>(moduleValue / 2);
         const ta::UltimateModule module = static_cast<ta::UltimateModule>(moduleValue);
         ta::GameSim moduleRun(0xF7000000u + static_cast<std::uint32_t>(moduleValue));
@@ -306,7 +364,7 @@ int main(int argc, char** argv) {
         moduleRun.setWorkshopProgress(20, maxModules);
         moduleRun.setSupportProgress(maxModules);
         moduleRun.reset(0xF7000000u + static_cast<std::uint32_t>(moduleValue));
-        advance(moduleRun, 100000, Policy::Oracle);
+        advance(moduleRun, BalanceTickHorizon, Policy::Oracle);
         std::cout << "Tower Ascend balance module=" << content.ultimateModuleMetadata[static_cast<std::size_t>(moduleValue)].display
                   << " parent=" << ta::ultimateName(ultimate) << " state=" << moduleRun.statusText() << " wave=" << moduleRun.waveNumber() << " damage=" << moduleRun.stats().damageDealt << '\n';
         if (!moduleRun.isGameOver() && !moduleRun.isVictory()) passed = false;

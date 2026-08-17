@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cctype>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -81,6 +83,8 @@ inline constexpr UiRect dailyModifierBriefingCard{180, 350, 860, 174};
 inline UiRect dailyEnemyBriefingRow(int index) { return {140, 370 + index * 22, 1040, 21}; }
 inline UiRect dailySkullBriefingRow(int index) { return {140, 470 + index * 22, 1040, 21}; }
 inline constexpr UiRect loadoutAutoButton{460, 570, 360, 18};
+inline constexpr UiRect loadoutDoctrineButton{190, 154, 900, 14};
+inline constexpr UiRect loadoutPassiveIdentityStrip{190, 170, 630, 14};
 inline constexpr UiRect loadoutStartButton{460, 640, 360, 38};
 inline constexpr UiRect loadoutDailyButton{850, 640, 240, 38};
 inline constexpr UiRect loadoutFrame{96, 54, 1088, 646};
@@ -89,6 +93,11 @@ inline constexpr UiRect loadoutDailyHeaderRegion{610, 90, 200, 64};
 inline constexpr UiRect loadoutSkinHeaderRegion{840, 90, 280, 92};
 inline constexpr UiRect workshopConfirmCancelButton{400, 510, 260, 52};
 inline constexpr UiRect workshopConfirmAcceptButton{700, 510, 260, 52};
+inline constexpr UiRect workshopClassSummaryPanel{700, 545, 390, 110};
+inline constexpr UiRect workshopClassOverviewButton{700, 545, 390, 28};
+inline constexpr UiRect workshopClassOverviewPanel{120, 104, 1040, 592};
+inline constexpr UiRect workshopClassOverviewPrevious{150, 620, 180, 38};
+inline constexpr UiRect workshopClassOverviewNext{950, 620, 180, 38};
 inline constexpr UiRect settingsCloseButton{760, 555, 270, 42};
 inline constexpr UiRect workshopTowerButton{190, 220, 270, 170};
 inline constexpr UiRect upgradeRerollButton{500, 574, 220, 28};
@@ -113,11 +122,93 @@ inline UiRect loadoutSkullCard(int index) { return {300 + index * 180, 420, 140,
 inline UiRect loadoutSupportCard(int index) { return {160 + index * 190, 494, 170, 20}; }
 inline UiRect loadoutUltimateCard(int index) { return {160 + index * 190, 520, 170, 48}; }
 inline UiRect loadoutSkillButton(int index) { return {190 + index * 180, 590, 140, 38}; }
+// The equipped bar stays fixed; the catalog is independently scrollable so a
+// larger authored skill set never changes the hitboxes of the run controls.
+inline constexpr UiRect skillBrowserOverlay{112, 74, 1056, 624};
+inline constexpr UiRect skillBrowserSearch{170, 132, 520, 32};
+inline constexpr UiRect skillBrowserClassFilter{700, 132, 210, 32};
+inline constexpr UiRect skillBrowserClose{974, 92, 156, 32};
+inline constexpr UiRect skillBrowserViewport{160, 178, 700, 476};
+inline constexpr UiRect skillBrowserDetails{884, 178, 246, 476};
+inline constexpr UiRect skillBrowserEquip{884, 610, 246, 32};
+inline constexpr UiRect skillBrowserScrollTrack{844, 178, 10, 476};
+inline constexpr int skillBrowserColumns = 2;
+inline constexpr int skillBrowserCardWidth = 336;
+inline constexpr int skillBrowserCardHeight = 82;
+inline constexpr int skillBrowserCardGap = 12;
+inline constexpr int skillBrowserVisibleRows = 5;
+
+inline UiRect skillBrowserCard(int visibleIndex, int scrollRow = 0) {
+    const int row = visibleIndex / skillBrowserColumns + scrollRow;
+    const int column = visibleIndex % skillBrowserColumns;
+    return {skillBrowserViewport.x + column * (skillBrowserCardWidth + skillBrowserCardGap),
+            skillBrowserViewport.y + (row - scrollRow) * (skillBrowserCardHeight + skillBrowserCardGap),
+            skillBrowserCardWidth, skillBrowserCardHeight};
+}
+
+inline int skillBrowserMaxScrollRows(int resultCount) {
+    const int rows = (std::max(0, resultCount) + skillBrowserColumns - 1) / skillBrowserColumns;
+    return std::max(0, rows - skillBrowserVisibleRows);
+}
+
+inline UiRect skillBrowserScrollbarThumb(int resultCount, int scrollRow) {
+    const int maxScroll = skillBrowserMaxScrollRows(resultCount);
+    if (maxScroll == 0) return skillBrowserScrollTrack;
+    const int thumbHeight = std::max(36, skillBrowserScrollTrack.height * skillBrowserVisibleRows /
+        std::max(skillBrowserVisibleRows, maxScroll + skillBrowserVisibleRows));
+    const int travel = skillBrowserScrollTrack.height - thumbHeight;
+    return {skillBrowserScrollTrack.x, skillBrowserScrollTrack.y + travel * std::clamp(scrollRow, 0, maxScroll) / maxScroll,
+            skillBrowserScrollTrack.width, thumbHeight};
+}
+
+inline int skillBrowserScrollFromPointer(int resultCount, int pointerY, int grabOffset = 0) {
+    const int maximum = skillBrowserMaxScrollRows(resultCount);
+    if (maximum == 0) return 0;
+    const UiRect thumb = skillBrowserScrollbarThumb(resultCount, 0);
+    const int travel = skillBrowserScrollTrack.height - thumb.height;
+    if (travel <= 0) return 0;
+    const int top = std::clamp(pointerY - grabOffset, skillBrowserScrollTrack.y, skillBrowserScrollTrack.y + travel);
+    return std::clamp(static_cast<int>(std::lround(static_cast<double>(top - skillBrowserScrollTrack.y) * maximum / travel)), 0, maximum);
+}
+
+inline std::string skillBrowserNormalize(std::string value) {
+    std::string normalized;
+    for (const unsigned char character : value) {
+        if (std::isalnum(character)) normalized.push_back(static_cast<char>(std::tolower(character)));
+        else if (!normalized.empty() && normalized.back() != ' ') normalized.push_back(' ');
+    }
+    while (!normalized.empty() && normalized.back() == ' ') normalized.pop_back();
+    return normalized;
+}
+
+inline bool skillBrowserMatches(const std::vector<std::string>& searchableFields, const std::string& query) {
+    const std::string normalizedQuery = skillBrowserNormalize(query);
+    if (normalizedQuery.empty()) return true;
+    std::vector<std::string> terms;
+    std::string term;
+    for (const char character : normalizedQuery) {
+        if (character == ' ') {
+            if (!term.empty()) { terms.push_back(term); term.clear(); }
+        } else term.push_back(character);
+    }
+    if (!term.empty()) terms.push_back(term);
+    for (const std::string& required : terms) {
+        bool matched = false;
+        for (const std::string& field : searchableFields) {
+            if (skillBrowserNormalize(field).find(required) != std::string::npos) { matched = true; break; }
+        }
+        if (!matched) return false;
+    }
+    return true;
+}
+
 inline UiRect loadoutSkinCard(int index) { return {850 + index * 52, 118, 44, 28}; }
 inline UiRect upgradeChoiceButton(int index) { return {220 + index * 290, 245, 220, 235}; }
 inline UiRect skillSlotButton(int index) { return {270 + index * 124, 620, 108, 72}; }
 inline constexpr UiRect ultimateSkillButton{910, 610, 150, 82};
 inline constexpr UiRect skillTargetCancelButton{1080, 620, 130, 34};
+inline constexpr UiRect hudContextualStrip{24, 596, 1200, 16};
+inline constexpr UiRect hudStatusStrip{24, 700, 1200, 14};
 inline UiRect collectionCategoryButton(int index) { return {130 + (index % 5) * 220, 215 + (index / 5) * 72, 200, 56}; }
 
 inline int collectionItemCount(int category) {

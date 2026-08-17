@@ -37,6 +37,10 @@ int main() {
         if (index > 0) check(!card.contains(ta::ui::loadoutWeaponCard(index - 1).x + ta::ui::loadoutWeaponCard(index - 1).width - 1, card.y + 1), "adjacent weapon cards overlap");
     }
     check(!ta::ui::loadoutStartButton.contains(ta::ui::loadoutAutoButton.x + 1, ta::ui::loadoutAutoButton.y + 1), "loadout start button overlaps auto toggle");
+    check(ta::ui::containsRect(ta::ui::loadoutFrame, ta::ui::loadoutDoctrineButton), "loadout doctrine selector escaped the frame");
+    check(ta::ui::containsRect(ta::ui::loadoutFrame, ta::ui::loadoutPassiveIdentityStrip), "loadout passive identity strip escaped the frame");
+    check(!overlaps(ta::ui::loadoutDoctrineButton, ta::ui::loadoutChassisCard(0)) && !overlaps(ta::ui::loadoutDoctrineButton, ta::ui::loadoutUltimateCard(0)), "loadout doctrine selector overlapped another control");
+    check(!overlaps(ta::ui::loadoutPassiveIdentityStrip, ta::ui::loadoutWeaponCard(0)) && !overlaps(ta::ui::loadoutPassiveIdentityStrip, ta::ui::loadoutSkinCard(0)), "loadout passive identity strip overlapped another panel");
     check(!ta::ui::workshopConfirmCancelButton.contains(ta::ui::workshopConfirmAcceptButton.x, ta::ui::workshopConfirmAcceptButton.y), "workshop confirmation buttons overlap");
     check(ta::ui::dailyEnemyBriefingRow(0).contains(140, 370), "daily enemy briefing row missed its top-left edge");
     check(!ta::ui::dailyEnemyBriefingRow(0).contains(1180, 370), "daily enemy briefing row leaked across its right edge");
@@ -50,6 +54,39 @@ int main() {
     check(ta::ui::settingsToggleButton(-20).contains(230, 270), "settings toggle index was not clamped safely");
     check(ta::ui::settingsToggleButton(99).contains(800, 270), "settings toggle upper index was not clamped safely");
     check(ta::ui::collectionItemCount(11) == 10, "ultimate sidegrade Codex category was incomplete");
+
+    check(ta::ui::skillBrowserMaxScrollRows(0) == 0, "empty skill catalog produced a scroll range");
+    check(ta::ui::skillBrowserMaxScrollRows(10) == 0, "five-row skill catalog unexpectedly scrolled");
+    check(ta::ui::skillBrowserMaxScrollRows(24) == 7, "skill catalog scroll range was incorrect");
+    check(ta::ui::containsRect(ta::ui::skillBrowserViewport, ta::ui::skillBrowserCard(0)), "first skill card escaped its viewport");
+    check(ta::ui::containsRect(ta::ui::skillBrowserViewport, ta::ui::skillBrowserCard(9)), "last visible skill card escaped its viewport");
+    check(ta::ui::skillBrowserScrollbarThumb(24, 0).y == ta::ui::skillBrowserScrollTrack.y, "skill scrollbar did not start at the track origin");
+    check(ta::ui::skillBrowserScrollbarThumb(24, 7).y + ta::ui::skillBrowserScrollbarThumb(24, 7).height ==
+          ta::ui::skillBrowserScrollTrack.y + ta::ui::skillBrowserScrollTrack.height, "skill scrollbar did not reach the track end");
+    check(ta::ui::skillBrowserScrollFromPointer(24, ta::ui::skillBrowserScrollTrack.y) == 0, "skill scrollbar drag did not clamp to the start");
+    check(ta::ui::skillBrowserScrollFromPointer(24, ta::ui::skillBrowserScrollTrack.y + ta::ui::skillBrowserScrollTrack.height) == 7, "skill scrollbar drag did not clamp to the end");
+    check(ta::ui::skillBrowserMatches({"Stormcaller", "elemental reaction", "chain lightning"}, "storm"), "skill search missed a class name");
+    check(ta::ui::skillBrowserMatches({"Stormcaller", "elemental reaction", "chain lightning"}, "LIGHTNING"), "skill search was not case insensitive");
+    check(ta::ui::skillBrowserMatches({"Stormcaller", "elemental reaction", "chain lightning"}, "storm lightning"), "combined skill search did not use AND semantics");
+    check(!ta::ui::skillBrowserMatches({"Stormcaller", "elemental reaction", "chain lightning"}, "storm summon"), "combined skill search incorrectly used OR semantics");
+    check(!ta::ui::skillBrowserMatches({"Stormcaller", "elemental reaction", "chain lightning"}, "summon"), "skill search matched an unrelated term");
+    check(ta::ui::workshopClassSummaryPanel.x >= 0 && ta::ui::workshopClassSummaryPanel.y >= 0 && ta::ui::workshopClassSummaryPanel.x + ta::ui::workshopClassSummaryPanel.width <= 1280 && ta::ui::workshopClassSummaryPanel.y + ta::ui::workshopClassSummaryPanel.height <= 720, "workshop class summary escaped the logical viewport");
+    check(ta::ui::workshopClassOverviewPanel.x >= 0 && ta::ui::workshopClassOverviewPanel.y >= 0 && ta::ui::workshopClassOverviewPanel.x + ta::ui::workshopClassOverviewPanel.width <= 1280 && ta::ui::workshopClassOverviewPanel.y + ta::ui::workshopClassOverviewPanel.height <= 720, "workshop class overview escaped the logical viewport");
+    check(ta::ui::containsRect(ta::ui::skillSlotButton(0), ta::ui::UiRect{ta::ui::skillSlotButton(0).x + 8, ta::ui::skillSlotButton(0).y + 65, 43, 5}), "resource preview pips escaped the skill card");
+    check(ta::ui::containsRect(ta::ui::skillSlotButton(0), ta::ui::UiRect{ta::ui::skillSlotButton(0).x + 66, ta::ui::skillSlotButton(0).y + 18, 40, 40}), "skill glyph frame escaped the skill card");
+    check(ta::ui::containsRect(ta::ui::skillSlotButton(0), ta::ui::UiRect{ta::ui::skillSlotButton(0).x + 8, ta::ui::skillSlotButton(0).y + 65, 7, 5}), "targeting resource preview escaped the skill card");
+    check(ta::ui::containsRect(ta::ui::UiRect{16, 8, 202, 52}, ta::ui::UiRect{144, 14, 74, 14}), "post-cast health preview escaped the lives panel");
+    check(ta::ui::containsRect(ta::ui::UiRect{0, 0, 1280, 720}, ta::ui::UiRect{860, 590, 205, 16}), "target legality status escaped the viewport");
+    check(ta::ui::containsRect(ta::ui::UiRect{0, 0, 1280, 720}, ta::ui::UiRect{860, 552, 205, 32}), "elemental target preview escaped the viewport");
+    check(ta::ui::containsRect(ta::ui::UiRect{0, 0, 1280, 720}, ta::ui::UiRect{860, 534, 205, 14}), "manipulation target preview escaped the viewport");
+    check(ta::ui::containsRect(ta::ui::UiRect{0, 0, 1280, 720}, ta::ui::UiRect{860, 516, 205, 14}), "artillery forecast preview escaped the viewport");
+    check(ta::ui::containsRect(ta::ui::UiRect{0, 0, 1280, 720}, ta::ui::UiRect{860, 498, 205, 14}), "spatial target preview escaped the viewport");
+    check(ta::ui::containsRect(ta::ui::UiRect{0, 0, 1280, 720}, ta::ui::UiRect{860, 480, 205, 14}), "oath target preview escaped the viewport");
+    check(ta::ui::containsRect(ta::ui::UiRect{0, 0, 1280, 720}, ta::ui::UiRect{860, 462, 205, 14}), "plague target preview escaped the viewport");
+    check(ta::ui::containsRect(ta::ui::UiRect{0, 0, 1280, 720}, ta::ui::UiRect{860, 444, 205, 14}), "salvage target preview escaped the viewport");
+    check(ta::ui::containsRect(ta::ui::UiRect{0, 0, 1280, 720}, ta::ui::UiRect{860, 426, 205, 14}), "bounty target preview escaped the viewport");
+    check(ta::ui::containsRect(ta::ui::UiRect{0, 0, 1280, 720}, ta::ui::UiRect{860, 408, 205, 14}), "timeline target preview escaped the viewport");
+    check(ta::ui::workshopClassSummaryPanel.x >= 0 && ta::ui::workshopClassSummaryPanel.y >= 0 && ta::ui::workshopClassSummaryPanel.x + ta::ui::workshopClassSummaryPanel.width <= 1280 && ta::ui::workshopClassSummaryPanel.y + ta::ui::workshopClassSummaryPanel.height <= 720, "workshop class summary escaped the logical viewport");
 
     check(ta::ui::runStandardButton.x > ta::ui::runStandardPanel.x && ta::ui::runStandardButton.y > ta::ui::runStandardPanel.y &&
           ta::ui::runStandardButton.x + ta::ui::runStandardButton.width < ta::ui::runStandardPanel.x + ta::ui::runStandardPanel.width &&
@@ -168,6 +205,10 @@ int main() {
     check(ta::app::mainMenuSelection(0) == ta::app::FrontendScreen::RunType && ta::app::mainMenuSelection(3) == ta::app::FrontendScreen::Settings, "main-menu state transitions were incorrect");
     check(ta::app::runTypeSelection(0) == ta::app::FrontendScreen::Loadout && ta::app::runTypeSelection(3) == ta::app::FrontendScreen::MainMenu, "run-type state transitions were incorrect");
     check(ta::app::backFrom(ta::app::FrontendScreen::Settings) == ta::app::FrontendScreen::MainMenu && ta::app::backFrom(ta::app::FrontendScreen::ModifierSelect) == ta::app::FrontendScreen::Loadout, "Back navigation contract was incorrect");
+    check(ta::ui::hudContextualStrip.y + ta::ui::hudContextualStrip.height <= ta::ui::skillSlotButton(0).y, "contextual HUD strip overlapped the skill bar");
+    check(ta::ui::hudContextualStrip.y + ta::ui::hudContextualStrip.height <= ta::ui::hudStatusStrip.y, "contextual HUD strip overlapped the status line");
+    for (int index = 0; index < 5; ++index) check(!overlaps(ta::ui::hudContextualStrip, ta::ui::skillSlotButton(index)), "contextual HUD strip overlapped a skill card");
+    for (int index = 0; index < 5; ++index) check(ta::ui::containsRect(ta::ui::skillSlotButton(index), {ta::ui::skillSlotButton(index).x + 8, ta::ui::skillSlotButton(index).y + 22, ta::ui::skillSlotButton(index).width - 16, 14}), "skill-card passive label escaped its card");
 
     if (failures != 0) std::cerr << failures << " UI layout checks failed\n";
     else std::cout << "Tower Ascend UI layout checks passed\n";

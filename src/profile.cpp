@@ -35,6 +35,16 @@ bool parseInt(const std::string& value, int& output) {
     } catch (...) { return false; }
 }
 
+bool parseUnsigned(const std::string& value, std::uint64_t& output) {
+    try {
+        std::size_t consumed = 0;
+        const unsigned long long parsed = std::stoull(value, &consumed);
+        if (consumed != value.size()) return false;
+        output = static_cast<std::uint64_t>(parsed);
+        return true;
+    } catch (...) { return false; }
+}
+
 SkillId parseSkillId(const std::string& value) {
     std::uint32_t numeric = 0;
     if (parseUnsigned(value, numeric) && numeric < static_cast<std::uint32_t>(SkillId::Count)) {
@@ -82,6 +92,7 @@ std::string ReplayData::serialize() const {
         stream << "skill_slot_" << slot << ' ' << skillIdString(skillLoadout.skills[slot]) << "\n";
         if (!skillLoadout.nodeBuilds[slot].empty()) stream << "skill_nodes_" << slot << ' ' << skillLoadout.nodeBuilds[slot] << "\n";
     }
+    if (!skillLoadout.doctrineId.empty()) stream << "skill_doctrine " << skillLoadout.doctrineId << "\n";
     for (const ReplayEvent& event : events) {
         if (event.action == ReplayAction::SkillCast) {
             const int x = static_cast<int>(std::lround(event.target.world.x * 10.0f));
@@ -176,12 +187,15 @@ bool ReplayData::deserialize(const std::string& text, ReplayData& output, std::s
             const std::string indexText = tag.substr(std::string("skill_nodes_").size());
             std::uint32_t index = 0;
             if (!parseUnsigned(indexText, index) || index >= SkillSlotCount || !(fields >> parsed.skillLoadout.nodeBuilds[index])) { if (error) *error = "invalid replay skill nodes"; return false; }
+        } else if (tag == "skill_doctrine") {
+            if (!(fields >> parsed.skillLoadout.doctrineId) || parsed.skillLoadout.doctrineId.empty()) { if (error) *error = "invalid replay skill doctrine"; return false; }
         } else if (tag == "event") {
             std::uint32_t tick = 0; int action = 0; int value = 0;
-            if (!(fields >> tick >> action >> value) || tick == 0 || action < 1 || action > 3 || value < 0 || value > 255) { if (error) *error = "invalid replay event"; return false; }
+            if (!(fields >> tick >> action >> value) || tick == 0 || action < 1 || action > 5 || value < 0 || value > 255) { if (error) *error = "invalid replay event"; return false; }
             if (action == static_cast<int>(ReplayAction::Upgrade) && value > 2) { if (error) *error = "invalid replay upgrade choice"; return false; }
             if (action == static_cast<int>(ReplayAction::Ultimate) && value != 0) { if (error) *error = "invalid replay ultimate value"; return false; }
             if (action == static_cast<int>(ReplayAction::Reroll) && value != 0) { if (error) *error = "invalid replay reroll value"; return false; }
+            if (action == static_cast<int>(ReplayAction::OathReward) && (value < 1 || value > 2)) { if (error) *error = "invalid replay Oathkeeper reward"; return false; }
             if (!parsed.events.empty() && tick < parsed.events.back().tick) { if (error) *error = "replay events are not ordered by tick"; return false; }
             parsed.events.push_back({tick, static_cast<ReplayAction>(action), static_cast<std::uint8_t>(value), 0, SkillId::GravityWell, {}});
         } else if (tag == "skill_cast") {
@@ -250,6 +264,8 @@ bool replayFinalHash(const ReplayData& replay, std::uint32_t ticks, std::uint32_
     simulation.setArena(replay.arena);
     simulation.setEndless(replay.endless);
     simulation.setSkillLoadout(replay.skillLoadout);
+    const bool replayHasAuthoredBuild = std::any_of(replay.skillLoadout.nodeBuilds.begin(), replay.skillLoadout.nodeBuilds.end(), [](const std::string& build) { return !build.empty(); });
+    if (replayHasAuthoredBuild && !simulation.skillLoadoutSatisfiesRules(error)) return false;
     simulation.reset(replay.seed);
     std::size_t eventIndex = 0;
     for (std::uint32_t tick = 1; tick <= ticks && !simulation.isGameOver() && !simulation.isVictory(); ++tick) {
@@ -263,6 +279,7 @@ bool replayFinalHash(const ReplayData& replay, std::uint32_t ticks, std::uint32_
                 if (event.sequence != 0 && simulation.lastSkillCastSequence() != event.sequence) { if (error) *error = "replay skill cast sequence diverged"; return false; }
             }
             else if (event.action == ReplayAction::Reroll && !simulation.rerollUpgradeChoices()) { if (error) *error = "replay reroll was not legal"; return false; }
+            else if (event.action == ReplayAction::OathReward && !simulation.chooseOathReward(event.value)) { if (error) *error = "replay Oathkeeper reward was not legal"; return false; }
         }
         simulation.tick();
     }
@@ -295,6 +312,9 @@ bool saveProfile(const std::string& path, const ProfileData& profile, std::strin
            << "equipped_weapon " << static_cast<unsigned int>(profile.equippedWeapon) << "\n"
            << "equipped_ultimate " << static_cast<unsigned int>(profile.equippedUltimate) << "\n"
            << "unlocked_skills " << profile.unlockedSkillsMask << "\n"
+           << "unlocked_skills_high " << profile.unlockedSkillsMaskHigh << "\n"
+           << "favorite_skills " << profile.favoriteSkillsMask << "\n"
+           << "favorite_skills_high " << profile.favoriteSkillsMaskHigh << "\n"
            << "unlocked_skins " << profile.unlockedSkinsMask << "\n"
            << "equipped_skin " << static_cast<unsigned int>(profile.equippedSkin) << "\n"
            << "high_contrast " << (profile.highContrast ? 1 : 0) << "\n"
@@ -306,16 +326,19 @@ bool saveProfile(const std::string& path, const ProfileData& profile, std::strin
            << "color_blind_palette " << static_cast<unsigned int>(profile.colorBlindPalette) << "\n"
            << "subtitles " << (profile.subtitles ? 1 : 0) << "\n"
            << "vibration " << (profile.vibration ? 1 : 0) << "\n";
+    for (const std::uint8_t skill : profile.skillUnlockOrder) stream << "skill_unlock_order " << static_cast<unsigned int>(skill) << "\n";
     for (std::size_t slot = 0; slot < SkillSlotCount; ++slot) {
         stream << "skill_slot_" << slot << ' ' << skillIdString(profile.skillLoadout.skills[slot]) << "\n";
         if (!profile.skillLoadout.nodeBuilds[slot].empty()) stream << "skill_nodes_" << slot << ' ' << profile.skillLoadout.nodeBuilds[slot] << "\n";
     }
+    if (!profile.skillLoadout.doctrineId.empty()) stream << "skill_doctrine " << profile.skillLoadout.doctrineId << "\n";
     for (std::size_t preset = 0; preset < profile.skillPresets.size(); ++preset) {
         stream << "skill_preset_" << preset << "_name " << profile.skillPresetNames[preset] << "\n";
         for (std::size_t slot = 0; slot < SkillSlotCount; ++slot) {
             stream << "skill_preset_" << preset << "_slot_" << slot << ' ' << skillIdString(profile.skillPresets[preset].skills[slot]) << "\n";
             if (!profile.skillPresets[preset].nodeBuilds[slot].empty()) stream << "skill_preset_" << preset << "_nodes_" << slot << ' ' << profile.skillPresets[preset].nodeBuilds[slot] << "\n";
         }
+        if (!profile.skillPresets[preset].doctrineId.empty()) stream << "skill_preset_" << preset << "_doctrine " << profile.skillPresets[preset].doctrineId << "\n";
     }
     for (const std::string& node : profile.unlockedSkillNodes) if (!node.empty()) stream << "skill_node " << node << "\n";
     for (const std::uint32_t dateKey : profile.claimedDailyChallenges) stream << "daily_claimed " << dateKey << "\n";
@@ -358,9 +381,14 @@ bool loadProfile(const std::string& path, ProfileData& profile, std::string* err
         else if (tag == "equipped_chassis") { std::uint32_t chassis = 0; if (!parseUnsigned(value, chassis) || chassis > static_cast<std::uint32_t>(TowerChassis::Catalyst)) return false; parsed.equippedChassis = static_cast<std::uint8_t>(chassis); }
         else if (tag == "equipped_weapon") { std::uint32_t weapon = 0; if (!parseUnsigned(value, weapon) || weapon > static_cast<std::uint32_t>(Weapon::SniperRailgun)) return false; parsed.equippedWeapon = static_cast<std::uint8_t>(weapon); }
         else if (tag == "equipped_ultimate") { std::uint32_t ultimate = 0; if (!parseUnsigned(value, ultimate) || ultimate > static_cast<std::uint32_t>(Ultimate::EnergySurge)) return false; parsed.equippedUltimate = static_cast<std::uint8_t>(ultimate); }
-        else if (tag == "unlocked_skills") { if (!parseUnsigned(value, parsed.unlockedSkillsMask) || (parsed.unlockedSkillsMask & ~((1u << static_cast<unsigned int>(SkillId::Count)) - 1u)) != 0) return false; }
+        else if (tag == "unlocked_skills") { if (!parseUnsigned(value, parsed.unlockedSkillsMask)) return false; }
+        else if (tag == "unlocked_skills_high") { if (!parseUnsigned(value, parsed.unlockedSkillsMaskHigh)) return false; }
+        else if (tag == "favorite_skills") { if (!parseUnsigned(value, parsed.favoriteSkillsMask)) return false; }
+        else if (tag == "favorite_skills_high") { if (!parseUnsigned(value, parsed.favoriteSkillsMaskHigh)) return false; }
+        else if (tag == "skill_unlock_order") { std::uint32_t skill = 0; if (!parseUnsigned(value, skill) || skill >= static_cast<std::uint32_t>(SkillId::Count) || std::find(parsed.skillUnlockOrder.begin(), parsed.skillUnlockOrder.end(), static_cast<std::uint8_t>(skill)) != parsed.skillUnlockOrder.end()) return false; parsed.skillUnlockOrder.push_back(static_cast<std::uint8_t>(skill)); }
         else if (tag.rfind("skill_slot_", 0) == 0) { const std::string indexText = tag.substr(std::string("skill_slot_").size()); std::uint32_t index = 0; if (!parseUnsigned(indexText, index) || index >= SkillSlotCount) return false; const SkillId skill = parseSkillId(value); if (skill == SkillId::Count) return false; parsed.skillLoadout.skills[index] = skill; }
         else if (tag.rfind("skill_nodes_", 0) == 0) { const std::string indexText = tag.substr(std::string("skill_nodes_").size()); std::uint32_t index = 0; if (!parseUnsigned(indexText, index) || index >= SkillSlotCount || value.empty()) return false; parsed.skillLoadout.nodeBuilds[index] = value; }
+        else if (tag == "skill_doctrine") { if (value.empty()) return false; parsed.skillLoadout.doctrineId = value; }
         else if (tag.rfind("skill_preset_", 0) == 0) {
             const std::string rest = tag.substr(std::string("skill_preset_").size());
             const std::size_t underscore = rest.find('_');
@@ -370,6 +398,7 @@ bool loadProfile(const std::string& path, ProfileData& profile, std::string* err
             if (field == "name") { if (value.empty()) return false; parsed.skillPresetNames[preset] = value; }
             else if (field.rfind("slot_", 0) == 0) { std::uint32_t slot = 0; if (!parseUnsigned(field.substr(5), slot) || slot >= SkillSlotCount) return false; const SkillId skill = parseSkillId(value); if (skill == SkillId::Count) return false; parsed.skillPresets[preset].skills[slot] = skill; }
             else if (field.rfind("nodes_", 0) == 0) { std::uint32_t slot = 0; if (!parseUnsigned(field.substr(6), slot) || slot >= SkillSlotCount || value.empty()) return false; parsed.skillPresets[preset].nodeBuilds[slot] = value; }
+            else if (field == "doctrine") { if (value.empty()) return false; parsed.skillPresets[preset].doctrineId = value; }
             else return false;
         }
         else if (tag == "skill_node") { if (value.empty() || value.find(':') == std::string::npos || std::find(parsed.unlockedSkillNodes.begin(), parsed.unlockedSkillNodes.end(), value) != parsed.unlockedSkillNodes.end()) return false; parsed.unlockedSkillNodes.push_back(value); }
@@ -587,7 +616,33 @@ bool equipUltimateModule(ProfileData& profile, UltimateModule module) {
 
 bool isSkillUnlocked(const ProfileData& profile, SkillId skill) {
     const unsigned int index = static_cast<unsigned int>(skill);
-    return index < static_cast<unsigned int>(SkillId::Count) && (profile.unlockedSkillsMask & (1u << index)) != 0;
+    if (index >= static_cast<unsigned int>(SkillId::Count)) return false;
+    return index < 64u ? (profile.unlockedSkillsMask & (1ull << index)) != 0 : (profile.unlockedSkillsMaskHigh & (1ull << (index - 64u))) != 0;
+}
+
+bool isSkillFavorite(const ProfileData& profile, SkillId skill) {
+    const unsigned int index = static_cast<unsigned int>(skill);
+    if (index >= static_cast<unsigned int>(SkillId::Count)) return false;
+    return index < 64u ? (profile.favoriteSkillsMask & (1ull << index)) != 0 : (profile.favoriteSkillsMaskHigh & (1ull << (index - 64u))) != 0;
+}
+
+bool setSkillFavorite(ProfileData& profile, SkillId skill, bool favorite) {
+    const unsigned int index = static_cast<unsigned int>(skill);
+    if (index >= static_cast<unsigned int>(SkillId::Count)) return false;
+    if (index < 64u) {
+        const std::uint64_t bit = 1ull << index;
+        if (favorite) profile.favoriteSkillsMask |= bit;
+        else profile.favoriteSkillsMask &= ~bit;
+    } else {
+        const std::uint64_t bit = 1ull << (index - 64u);
+        if (favorite) profile.favoriteSkillsMaskHigh |= bit;
+        else profile.favoriteSkillsMaskHigh &= ~bit;
+    }
+    return true;
+}
+
+bool toggleSkillFavorite(ProfileData& profile, SkillId skill) {
+    return setSkillFavorite(profile, skill, !isSkillFavorite(profile, skill));
 }
 
 bool unlockSkill(ProfileData& profile, SkillId skill, const ContentConfig& content) {
@@ -596,7 +651,9 @@ bool unlockSkill(ProfileData& profile, SkillId skill, const ContentConfig& conte
     const std::uint32_t cost = 120u + index * 20u;
     if (profile.coreParts < cost) return false;
     profile.coreParts -= cost;
-    profile.unlockedSkillsMask |= 1u << index;
+    if (index < 64u) profile.unlockedSkillsMask |= 1ull << index;
+    else profile.unlockedSkillsMaskHigh |= 1ull << (index - 64u);
+    profile.skillUnlockOrder.push_back(static_cast<std::uint8_t>(index));
     (void)content;
     return true;
 }
