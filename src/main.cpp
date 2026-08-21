@@ -3150,16 +3150,17 @@ int main(int argc, char** argv) {
     TextLayoutAudit textAudit(textAuditRequested);
     activeTextAudit = &textAudit;
 
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) != 0) {
+    const Uint32 sdlSubsystems = SDL_INIT_VIDEO | SDL_INIT_AUDIO | (renderSmoke ? 0u : SDL_INIT_GAMECONTROLLER);
+    if (SDL_Init(sdlSubsystems) != 0) {
         std::fprintf(stderr, "SDL init failed: %s\n", SDL_GetError());
         return 1;
     }
-    const bool hapticSubsystem = SDL_InitSubSystem(SDL_INIT_HAPTIC) == 0;
+    const bool hapticSubsystem = !renderSmoke && SDL_InitSubSystem(SDL_INIT_HAPTIC) == 0;
     AudioSynth audio;
     const bool audioEnabled = audio.init();
     HapticFeedback haptics;
     const bool hapticsEnabled = hapticSubsystem && haptics.init();
-    SDL_GameController* controller = SDL_NumJoysticks() > 0 && SDL_IsGameController(0) ? SDL_GameControllerOpen(0) : nullptr;
+    SDL_GameController* controller = !renderSmoke && SDL_NumJoysticks() > 0 && SDL_IsGameController(0) ? SDL_GameControllerOpen(0) : nullptr;
     SDL_Window* window = SDL_CreateWindow("Tower Ascend", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, GameSim::DesignWidth, GameSim::DesignHeight, SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
     SDL_Renderer* renderer = window ? SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC) : nullptr;
     if (window && !renderer) renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
@@ -3167,7 +3168,13 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "SDL renderer failed: %s\n", SDL_GetError());
         if (renderer) SDL_DestroyRenderer(renderer);
         if (window) SDL_DestroyWindow(window);
-        SDL_Quit();
+        if (controller != nullptr) SDL_GameControllerClose(controller);
+        haptics.shutdown();
+        audio.shutdown();
+        if (hapticSubsystem) SDL_QuitSubSystem(SDL_INIT_HAPTIC);
+        if (!renderSmoke) SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
+        SDL_QuitSubSystem(SDL_INIT_AUDIO);
+        SDL_QuitSubSystem(SDL_INIT_VIDEO);
         return 1;
     }
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
@@ -4122,7 +4129,11 @@ int main(int argc, char** argv) {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     if (controller != nullptr) SDL_GameControllerClose(controller);
+    haptics.shutdown();
     audio.shutdown();
-    SDL_Quit();
+    if (hapticSubsystem) SDL_QuitSubSystem(SDL_INIT_HAPTIC);
+    if (!renderSmoke) SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
+    SDL_QuitSubSystem(SDL_INIT_AUDIO);
+    SDL_QuitSubSystem(SDL_INIT_VIDEO);
     return 0;
 }
