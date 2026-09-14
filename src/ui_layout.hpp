@@ -1,11 +1,14 @@
 #pragma once
 
+#include "ui_text.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cctype>
 #include <cmath>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace ta::ui {
@@ -27,6 +30,38 @@ struct LayoutElement {
     const char* name = "";
     UiRect bounds{};
     LayoutRole role = LayoutRole::Decoration;
+};
+
+// The legacy LayoutElement helpers are useful for small static checks. UiNode
+// and UiScene are the migration boundary for the full interface: one scene
+// description will eventually drive drawing, hit testing, focus, tooltips,
+// and diagnostics instead of each screen maintaining separate rectangles.
+struct UiNode {
+    std::string id;
+    std::string parentId;
+    std::string actionId;
+    UiRect bounds{};
+    LayoutRole role = LayoutRole::Decoration;
+    int zOrder = 0;
+    bool enabled = true;
+};
+
+struct UiValidationIssue {
+    std::string code;
+    std::string nodeId;
+    std::string relatedId;
+    std::string detail;
+};
+
+struct UiTextNode {
+    std::string id;
+    std::string parentId;
+    UiRect bounds{};
+    std::string text;
+    int scale = 1;
+    int padding = 0;
+    int lineGap = 18;
+    bool wrap = true;
 };
 
 inline constexpr bool intersects(const UiRect& first, const UiRect& second) {
@@ -60,6 +95,100 @@ inline std::vector<std::string> unexpectedOverlaps(const std::vector<LayoutEleme
     }
     return issues;
 }
+
+class UiScene {
+public:
+    explicit UiScene(UiRect viewport) : viewport_(viewport) {}
+
+    void clear() { nodes_.clear(); textNodes_.clear(); }
+    void add(UiNode node) { nodes_.push_back(std::move(node)); }
+    void addText(UiTextNode node) { textNodes_.push_back(std::move(node)); }
+    const std::vector<UiNode>& nodes() const { return nodes_; }
+    const std::vector<UiTextNode>& textNodes() const { return textNodes_; }
+
+    std::vector<UiValidationIssue> validate() const {
+        std::vector<UiValidationIssue> issues;
+        for (std::size_t index = 0; index < nodes_.size(); ++index) {
+            const UiNode& node = nodes_[index];
+            if (node.id.empty()) issues.push_back({"EMPTY_ID", node.id, {}, "every UI node needs a stable ID"});
+            if (node.bounds.width <= 0 || node.bounds.height <= 0) {
+                issues.push_back({"INVALID_BOUNDS", node.id, {}, "UI node has a non-positive size"});
+            }
+            if (node.parentId.empty()) {
+                if (!containsRect(viewport_, node.bounds)) issues.push_back({"VIEWPORT_ESCAPE", node.id, {}, "root node is outside the logical viewport"});
+            } else {
+                const UiNode* parent = find(node.parentId);
+                if (parent == nullptr) issues.push_back({"MISSING_PARENT", node.id, node.parentId, "parent node does not exist"});
+                else {
+                    if (parent->role != LayoutRole::Container) issues.push_back({"INVALID_PARENT", node.id, parent->id, "only containers may own child nodes"});
+                    if (!containsRect(parent->bounds, node.bounds)) issues.push_back({"PARENT_ESCAPE", node.id, parent->id, "child node escapes its declared parent"});
+                }
+            }
+            if (node.role == LayoutRole::Interactive && node.actionId.empty()) {
+                issues.push_back({"MISSING_ACTION", node.id, {}, "interactive node has no semantic action ID"});
+            }
+            for (std::size_t previous = 0; previous < index; ++previous) {
+                const UiNode& other = nodes_[previous];
+                if (node.id == other.id) issues.push_back({"DUPLICATE_ID", node.id, other.id, "UI node IDs must be unique"});
+                if (node.role == LayoutRole::Interactive && other.role == LayoutRole::Interactive &&
+                    node.actionId == other.actionId && !node.actionId.empty() && node.enabled && other.enabled) {
+                    issues.push_back({"DUPLICATE_ACTION", node.id, other.id, "enabled interactive nodes share an action ID"});
+                }
+                if (node.parentId != other.parentId || !intersects(node.bounds, other.bounds)) continue;
+                if (node.role == LayoutRole::Decoration || other.role == LayoutRole::Decoration) continue;
+                if (node.role == LayoutRole::Container || other.role == LayoutRole::Container) continue;
+                issues.push_back({"SIBLING_OVERLAP", node.id, other.id, "non-decoration sibling nodes overlap"});
+            }
+        }
+        for (std::size_t index = 0; index < textNodes_.size(); ++index) {
+            const UiTextNode& text = textNodes_[index];
+            if (text.id.empty()) issues.push_back({"EMPTY_ID", text.id, {}, "every UI text node needs a stable ID"});
+            for (const UiNode& node : nodes_) if (text.id == node.id) issues.push_back({"DUPLICATE_ID", text.id, node.id, "UI node IDs must be unique"});
+            if (!text.parentId.empty()) {
+                const UiNode* parent = find(text.parentId);
+                if (parent == nullptr) issues.push_back({"MISSING_PARENT", text.id, text.parentId, "text parent node does not exist"});
+                else if (parent->role != LayoutRole::Container) issues.push_back({"INVALID_PARENT", text.id, parent->id, "only containers may own text nodes"});
+                else if (!containsRect(parent->bounds, text.bounds)) issues.push_back({"PARENT_ESCAPE", text.id, parent->id, "text node escapes its declared parent"});
+            } else if (!containsRect(viewport_, text.bounds)) {
+                issues.push_back({"VIEWPORT_ESCAPE", text.id, {}, "root text node is outside the logical viewport"});
+            }
+            const int innerWidth = std::max(1, text.bounds.width - text.padding * 2);
+            const int innerHeight = std::max(1, text.bounds.height - text.padding * 2);
+            const TextMetrics metrics = text.wrap ? measureWrappedText(text.text, innerWidth, text.scale, text.lineGap) : measureText(text.text, text.scale);
+            if (!fitsWithin(metrics, innerWidth, innerHeight)) issues.push_back({"TEXT_OVERFLOW", text.id, {}, "text does not fit its declared box"});
+            for (const UiNode& node : nodes_) {
+                if (text.parentId != node.parentId || !intersects(text.bounds, node.bounds)) continue;
+                if (node.role != LayoutRole::Decoration && node.role != LayoutRole::Container) issues.push_back({"TEXT_CONTROL_OVERLAP", text.id, node.id, "text overlaps a sibling interactive node"});
+            }
+            for (std::size_t previous = 0; previous < index; ++previous) {
+                const UiTextNode& other = textNodes_[previous];
+                if (text.id == other.id) issues.push_back({"DUPLICATE_ID", text.id, other.id, "UI node IDs must be unique"});
+                if (text.parentId == other.parentId && intersects(text.bounds, other.bounds)) issues.push_back({"TEXT_OVERLAP", text.id, other.id, "sibling text nodes overlap"});
+            }
+        }
+        return issues;
+    }
+
+    const UiNode* hitTest(int x, int y) const {
+        const UiNode* result = nullptr;
+        for (const UiNode& node : nodes_) {
+            if (!node.enabled || node.role != LayoutRole::Interactive || !node.bounds.contains(x, y)) continue;
+            if (result == nullptr || node.zOrder > result->zOrder ||
+                (node.zOrder == result->zOrder && node.id > result->id)) result = &node;
+        }
+        return result;
+    }
+
+private:
+    const UiNode* find(const std::string& id) const {
+        for (const UiNode& node : nodes_) if (node.id == id) return &node;
+        return nullptr;
+    }
+
+    UiRect viewport_{};
+    std::vector<UiNode> nodes_;
+    std::vector<UiTextNode> textNodes_;
+};
 
 inline constexpr UiRect mainStartButton{430, 270, 420, 58};
 inline constexpr UiRect mainWorkshopButton{430, 344, 420, 58};

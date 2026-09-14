@@ -3423,9 +3423,129 @@ int main(int argc, char** argv) {
         targetingSkillSlot = -1;
         return true;
     };
+    // UI rectangles use game-space coordinates; SDL applies WorldScale only
+    // when presenting them on the larger display surface.
+    ta::ui::UiScene interactionScene({0, 0, GameSim::Width, GameSim::Height});
+    std::set<std::string> reportedInteractionIssues;
+    const auto reportInteractionIssues = [&]() {
+        for (const ta::ui::UiValidationIssue& issue : interactionScene.validate()) {
+            const std::string key = issue.code + "|" + issue.nodeId + "|" + issue.relatedId;
+            if (!reportedInteractionIssues.insert(key).second) continue;
+            std::cerr << "UI_LAYOUT_ISSUE screen=" << static_cast<int>(screen) << " code=" << issue.code
+                      << " node=" << issue.nodeId << (issue.relatedId.empty() ? std::string{} : " related=" + issue.relatedId)
+                      << " detail=" << issue.detail << '\n';
+        }
+    };
+    const auto rebuildInteractionScene = [&]() {
+        interactionScene.clear();
+        if (settingsOpen || screen == FrontendScreen::Settings) {
+            interactionScene.add({"settings.close", {}, "settings.close", settingsCloseButton, ta::ui::LayoutRole::Interactive, 40, true});
+            for (int index = 0; index < 4; ++index) interactionScene.add({"settings.toggle." + std::to_string(index), {}, "settings.toggle." + std::to_string(index), settingsToggleButton(index), ta::ui::LayoutRole::Interactive, 40, true});
+            reportInteractionIssues();
+            return;
+        }
+        if (started) {
+            if (sim.upgradePending()) {
+                interactionScene.add({"game.upgrade.reroll", {}, "game.upgrade.reroll", upgradeRerollButton, ta::ui::LayoutRole::Interactive, 30, true});
+                for (int index = 0; index < 3; ++index) interactionScene.add({"game.upgrade.choice." + std::to_string(index), {}, "game.upgrade.choice." + std::to_string(index), upgradeChoiceButton(index), ta::ui::LayoutRole::Interactive, 30, true});
+            } else if (targetingSkillSlot >= 0) {
+                interactionScene.add({"game.target.cancel", {}, "game.target.cancel", skillTargetCancelButton, ta::ui::LayoutRole::Interactive, 30, true});
+            } else {
+                for (int index = 0; index < static_cast<int>(ta::SkillSlotCount); ++index) interactionScene.add({"game.skill." + std::to_string(index), {}, "game.skill." + std::to_string(index), skillSlotButton(index), ta::ui::LayoutRole::Interactive, 20, true});
+                interactionScene.add({"game.ultimate", {}, "game.ultimate", ultimateSkillButton, ta::ui::LayoutRole::Interactive, 20, true});
+            }
+            reportInteractionIssues();
+            return;
+        }
+        if (screen == FrontendScreen::MainMenu) {
+            interactionScene.add({"main.start", {}, "main.start", mainStartButton, ta::ui::LayoutRole::Interactive, 10, true});
+            interactionScene.add({"main.workshop", {}, "main.workshop", mainWorkshopButton, ta::ui::LayoutRole::Interactive, 10, true});
+            interactionScene.add({"main.collection", {}, "main.collection", mainCollectionButton, ta::ui::LayoutRole::Interactive, 10, true});
+            interactionScene.add({"main.settings", {}, "main.settings", mainSettingsButton, ta::ui::LayoutRole::Interactive, 10, true});
+            interactionScene.add({"main.quit", {}, "main.quit", mainQuitButton, ta::ui::LayoutRole::Interactive, 10, true});
+        } else if (screen == FrontendScreen::RunType) {
+            if (dailyBriefingExpanded) interactionScene.add({"run.dailyBriefing.close", {}, "run.dailyBriefing.close", dailyBriefingCloseButton, ta::ui::LayoutRole::Interactive, 20, true});
+            else {
+                interactionScene.add({"run.standard", {}, "run.standard", runStandardButton, ta::ui::LayoutRole::Interactive, 10, true});
+                interactionScene.add({"run.daily", {}, "run.daily", runDailyButton, ta::ui::LayoutRole::Interactive, 10, true});
+                interactionScene.add({"run.endless", {}, "run.endless", runEndlessButton, ta::ui::LayoutRole::Interactive, 10, true});
+                interactionScene.add({"run.dailyBriefing.open", {}, "run.dailyBriefing.open", dailyBriefingCard, ta::ui::LayoutRole::Interactive, 5, true});
+                interactionScene.add({"run.back", {}, "run.back", runTypeBackButton, ta::ui::LayoutRole::Interactive, 10, true});
+            }
+        } else if (screen == FrontendScreen::Loadout) {
+            if (skillBrowserOpen) {
+                interactionScene.add({"loadout.skill.close", {}, "loadout.skill.close", skillBrowserClose, ta::ui::LayoutRole::Interactive, 20, true});
+                interactionScene.add({"loadout.skill.search", {}, "loadout.skill.search", skillBrowserSearch, ta::ui::LayoutRole::Interactive, 20, true});
+                interactionScene.add({"loadout.skill.filter", {}, "loadout.skill.filter", skillBrowserClassFilter, ta::ui::LayoutRole::Interactive, 20, true});
+                interactionScene.add({"loadout.skill.scroll", {}, "loadout.skill.scroll", skillBrowserScrollTrack, ta::ui::LayoutRole::Interactive, 20, true});
+                interactionScene.add({"loadout.skill.equip", {}, "loadout.skill.equip", skillBrowserEquip, ta::ui::LayoutRole::Interactive, 20, true});
+                const std::vector<int> results = skillBrowserResults(sim, skillBrowserQuery, skillBrowserClass, &profile);
+                const int visibleCount = std::min(static_cast<int>(results.size()), skillBrowserColumns * skillBrowserVisibleRows);
+                for (int visible = 0; visible < visibleCount; ++visible) {
+                    const int resultIndex = visible + skillBrowserScroll * skillBrowserColumns;
+                    if (resultIndex >= static_cast<int>(results.size())) break;
+                    interactionScene.add({"loadout.skill.card." + std::to_string(resultIndex), {}, "loadout.skill.card." + std::to_string(resultIndex),
+                                          skillBrowserCard(visible), ta::ui::LayoutRole::Interactive, 15, true});
+                }
+            } else {
+                for (int index = 0; index < 3; ++index) interactionScene.add({"loadout.chassis." + std::to_string(index), {}, "loadout.chassis." + std::to_string(index), loadoutChassisCard(index), ta::ui::LayoutRole::Interactive, 10, !dailyMode || !daily.chassisRequired || static_cast<ta::TowerChassis>(index) == daily.requiredChassis});
+                for (int index = 0; index < 5; ++index) interactionScene.add({"loadout.weapon." + std::to_string(index), {}, "loadout.weapon." + std::to_string(index), loadoutWeaponCard(index), ta::ui::LayoutRole::Interactive, 10, !dailyMode || !daily.weaponRequired || static_cast<ta::Weapon>(index) == daily.requiredWeapon});
+                for (int index = 0; index < 3; ++index) interactionScene.add({"loadout.arena." + std::to_string(index), {}, "loadout.arena." + std::to_string(index), loadoutArenaCard(index), ta::ui::LayoutRole::Interactive, 10, !dailyMode || static_cast<ta::Arena>(index) == daily.arena});
+                for (int index = 0; index < 4; ++index) interactionScene.add({"loadout.skull." + std::to_string(index), {}, "loadout.skull." + std::to_string(index), loadoutSkullCard(index), ta::ui::LayoutRole::Interactive, 10, !dailyMode});
+                for (int index = 0; index < 5; ++index) {
+                    interactionScene.add({"loadout.skin." + std::to_string(index), {}, "loadout.skin." + std::to_string(index), loadoutSkinCard(index), ta::ui::LayoutRole::Interactive, 10, true});
+                    interactionScene.add({"loadout.ultimate." + std::to_string(index), {}, "loadout.ultimate." + std::to_string(index), loadoutUltimateCard(index), ta::ui::LayoutRole::Interactive, 10, !dailyMode || static_cast<ta::Ultimate>(index) == daily.requiredUltimate});
+                    interactionScene.add({"loadout.support." + std::to_string(index), {}, "loadout.support." + std::to_string(index), loadoutSupportCard(index), ta::ui::LayoutRole::Interactive, 10, !dailyMode || static_cast<ta::SupportModule>(index) == daily.requiredSupport});
+                    interactionScene.add({"loadout.skill." + std::to_string(index), {}, "loadout.skill." + std::to_string(index), loadoutSkillButton(index), ta::ui::LayoutRole::Interactive, 10, !dailyMode});
+                }
+                interactionScene.add({"loadout.doctrine", {}, "loadout.doctrine", loadoutDoctrineButton, ta::ui::LayoutRole::Interactive, 10, !dailyMode});
+                interactionScene.add({"loadout.start", {}, "loadout.start", loadoutStartButton, ta::ui::LayoutRole::Interactive, 10, true});
+                interactionScene.add({"loadout.daily", {}, "loadout.daily", loadoutDailyButton, ta::ui::LayoutRole::Interactive, 10, true});
+            }
+        } else if (screen == FrontendScreen::Workshop) {
+            if (workshopPurchase != WorkshopPurchase::None) {
+                interactionScene.add({"workshop.confirm.cancel", {}, "workshop.confirm.cancel", workshopConfirmCancelButton, ta::ui::LayoutRole::Interactive, 30, true});
+                interactionScene.add({"workshop.confirm.accept", {}, "workshop.confirm.accept", workshopConfirmAcceptButton, ta::ui::LayoutRole::Interactive, 30, true});
+            } else if (workshopClassOverview) {
+                interactionScene.add({"workshop.overview.previous", {}, "workshop.overview.previous", workshopClassOverviewPrevious, ta::ui::LayoutRole::Interactive, 30, true});
+                interactionScene.add({"workshop.overview.next", {}, "workshop.overview.next", workshopClassOverviewNext, ta::ui::LayoutRole::Interactive, 30, true});
+                interactionScene.add({"workshop.overview.close", {}, "workshop.overview.close", workshopBackButton, ta::ui::LayoutRole::Interactive, 30, true});
+            } else {
+                interactionScene.add({"workshop.overview.open", {}, "workshop.overview.open", workshopClassOverviewButton, ta::ui::LayoutRole::Interactive, 10, true});
+                interactionScene.add({"workshop.back", {}, "workshop.back", workshopBackButton, ta::ui::LayoutRole::Interactive, 10, true});
+                interactionScene.add({"workshop.tower", {}, "workshop.tower", workshopTowerButton, ta::ui::LayoutRole::Interactive, 10, true});
+                for (int index = 0; index < 5; ++index) {
+                    interactionScene.add({"workshop.module." + std::to_string(index), {}, "workshop.module." + std::to_string(index), workshopModuleButton(index), ta::ui::LayoutRole::Interactive, 10, true});
+                    interactionScene.add({"workshop.support." + std::to_string(index), {}, "workshop.support." + std::to_string(index), workshopSupportButton(index), ta::ui::LayoutRole::Interactive, 10, index > 0});
+                }
+                for (int index = 0; index < 3; ++index) {
+                    interactionScene.add({"workshop.preset." + std::to_string(index), {}, "workshop.preset." + std::to_string(index), workshopPresetButton(index), ta::ui::LayoutRole::Interactive, 10, true});
+                    interactionScene.add({"workshop.skill." + std::to_string(index), {}, "workshop.skill." + std::to_string(index), workshopSkillButton(index), ta::ui::LayoutRole::Interactive, 10, true});
+                    interactionScene.add({"workshop.evolution." + std::to_string(index), {}, "workshop.evolution." + std::to_string(index), workshopUltimateButton(index), ta::ui::LayoutRole::Interactive, 10, true});
+                }
+                for (int index = 0; index < 2; ++index) interactionScene.add({"workshop.sidegrade." + std::to_string(index), {}, "workshop.sidegrade." + std::to_string(index), workshopUltimateModuleButton(index), ta::ui::LayoutRole::Interactive, 10, true});
+            }
+        } else if (screen == FrontendScreen::Collection) {
+            interactionScene.add({"collection.back", {}, "collection.back", collectionBackButton, ta::ui::LayoutRole::Interactive, 10, true});
+            for (int index = 0; index < 13; ++index) interactionScene.add({"collection.category." + std::to_string(index), {}, "collection.category." + std::to_string(index), collectionCategoryButton(index), ta::ui::LayoutRole::Interactive, 10, true});
+        } else if (screen == FrontendScreen::ModifierSelect) {
+            if (dailyBriefingExpanded) interactionScene.add({"modifier.dailyBriefing.close", {}, "modifier.dailyBriefing.close", dailyBriefingCloseButton, ta::ui::LayoutRole::Interactive, 30, true});
+            else {
+                interactionScene.add({"modifier.back", {}, "modifier.back", modifierBackButton, ta::ui::LayoutRole::Interactive, 10, true});
+                interactionScene.add({"modifier.confirm", {}, "modifier.confirm", modifierConfirmButton, ta::ui::LayoutRole::Interactive, 10, true});
+                if (dailyMode) interactionScene.add({"modifier.dailyBriefing.open", {}, "modifier.dailyBriefing.open", dailyModifierBriefingCard, ta::ui::LayoutRole::Interactive, 5, true});
+            }
+        }
+        reportInteractionIssues();
+    };
+    const auto actionAt = [&](int x, int y) -> std::string {
+        const ta::ui::UiNode* hit = interactionScene.hitTest(x, y);
+        return hit == nullptr ? std::string{} : hit->actionId;
+    };
     std::uint64_t accumulator = 0;
     std::uint64_t last = SDL_GetPerformanceCounter();
     while (running) {
+        rebuildInteractionScene();
         const std::uint64_t now = SDL_GetPerformanceCounter();
         const std::uint64_t elapsed = now - last;
         last = now;
@@ -3837,41 +3957,45 @@ int main(int argc, char** argv) {
                 // SDL_RenderWindowToLogical a second time; doing so shifts
                 // hit tests and makes adjacent buttons appear misaligned.
                 if (settingsOpen || (!started && screen == FrontendScreen::Settings)) {
+                    const std::string action = actionAt(x, y);
                     activeDevice = event.type == SDL_FINGERDOWN ? "TOUCH" : "MOUSE";
-                    if (settingsCloseButton.contains(x, y)) {
+                    if (action == "settings.close") {
                         settingsOpen = false;
                         if (!started && screen == FrontendScreen::Settings) { screen = ta::app::backFrom(screen); menuFocus = 3; }
                         if (started) paused = false;
-                    } else if (settingsToggleButton(0).contains(x, y) || settingsToggleButton(1).contains(x, y) || settingsToggleButton(2).contains(x, y) || settingsToggleButton(3).contains(x, y)) {
-                        if (settingsToggleButton(0).contains(x, y)) { profile.reducedFlashes = !profile.reducedFlashes; reducedFlashes = profile.reducedFlashes; }
-                        else if (settingsToggleButton(1).contains(x, y)) { profile.highContrast = !profile.highContrast; highContrast = profile.highContrast; }
-                        else if (settingsToggleButton(2).contains(x, y)) profile.subtitles = !profile.subtitles;
-                        else profile.vibration = !profile.vibration;
+                    } else if (action.rfind("settings.toggle.", 0) == 0) {
+                        const int index = std::stoi(action.substr(std::string("settings.toggle.").size()));
+                        if (index == 0) { profile.reducedFlashes = !profile.reducedFlashes; reducedFlashes = profile.reducedFlashes; }
+                        else if (index == 1) { profile.highContrast = !profile.highContrast; highContrast = profile.highContrast; }
+                        else if (index == 2) profile.subtitles = !profile.subtitles;
+                        else if (index == 3) profile.vibration = !profile.vibration;
                         saveCurrentProfile();
                     }
                     continue;
                 }
                 if (!started && screen != FrontendScreen::Loadout) {
                     if (screen == FrontendScreen::MainMenu) {
-                        if (mainStartButton.contains(x, y)) screen = FrontendScreen::RunType;
-                        else if (mainWorkshopButton.contains(x, y)) screen = FrontendScreen::Workshop;
-                        else if (mainCollectionButton.contains(x, y)) screen = FrontendScreen::Collection;
-                        else if (mainSettingsButton.contains(x, y)) { screen = FrontendScreen::Settings; menuFocus = 0; }
-                        else if (mainQuitButton.contains(x, y)) running = false;
+                        const std::string action = actionAt(x, y);
+                        if (action == "main.start") screen = FrontendScreen::RunType;
+                        else if (action == "main.workshop") screen = FrontendScreen::Workshop;
+                        else if (action == "main.collection") screen = FrontendScreen::Collection;
+                        else if (action == "main.settings") { screen = FrontendScreen::Settings; menuFocus = 0; }
+                        else if (action == "main.quit") running = false;
                     } else if (screen == FrontendScreen::RunType) {
+                        const std::string action = actionAt(x, y);
                         if (dailyBriefingExpanded) {
-                            if (dailyBriefingCloseButton.contains(x, y)) { dailyBriefingExpanded = false; dailyBriefingFocus = 0; }
+                            if (action == "run.dailyBriefing.close") { dailyBriefingExpanded = false; dailyBriefingFocus = 0; }
                             else if (dailyBriefingDetailAt(daily, x, y) > 0) dailyBriefingFocus = dailyBriefingDetailAt(daily, x, y);
-                        } else if (runStandardButton.contains(x, y)) { endlessMode = false; dailyMode = false; screen = FrontendScreen::Loadout; }
-                        else if (runEndlessButton.contains(x, y)) { endlessMode = true; dailyMode = false; screen = FrontendScreen::Loadout; }
-                        else if (runDailyButton.contains(x, y)) {
+                        } else if (action == "run.standard") { endlessMode = false; dailyMode = false; screen = FrontendScreen::Loadout; }
+                        else if (action == "run.endless") { endlessMode = true; dailyMode = false; screen = FrontendScreen::Loadout; }
+                        else if (action == "run.daily") {
                             endlessMode = false;
                             prepareDailyRun();
                             replay = makeReplay();
                             screen = FrontendScreen::Loadout;
                             dailyMode = true;
                             dailyBriefingExpanded = false;
-                        } else if (dailyBriefingCard.contains(x, y)) {
+                        } else if (action == "run.dailyBriefing.open") {
                             dailyBriefingExpanded = true;
                         } else if (workshopSkillFocus >= 0) {
                             if (workshopSkillTreeCloseButton.contains(x, y)) workshopSkillFocus = -1;
@@ -3887,64 +4011,68 @@ int main(int argc, char** argv) {
                                     }
                                 }
                             }
-                        } else if (runTypeBackButton.contains(x, y)) screen = FrontendScreen::MainMenu;
+                        } else if (action == "run.back") screen = FrontendScreen::MainMenu;
                     } else if (screen == FrontendScreen::ModifierSelect) {
+                        const std::string action = actionAt(x, y);
                         if (dailyBriefingExpanded) {
-                            if (dailyBriefingCloseButton.contains(x, y)) { dailyBriefingExpanded = false; dailyBriefingFocus = 0; }
+                            if (action == "modifier.dailyBriefing.close") { dailyBriefingExpanded = false; dailyBriefingFocus = 0; }
                             else if (dailyBriefingDetailAt(daily, x, y) > 0) dailyBriefingFocus = dailyBriefingDetailAt(daily, x, y);
-                        } else if (modifierBackButton.contains(x, y)) screen = FrontendScreen::Loadout;
-                        else if (modifierConfirmButton.contains(x, y)) {
+                        } else if (action == "modifier.back") screen = FrontendScreen::Loadout;
+                        else if (action == "modifier.confirm") {
                             if (dailyMode) prepareDailyRun();
                             else prepareStandardRun(0x7A2026u);
                             beginPreparedRun();
-                        } else if (dailyMode && dailyModifierBriefingCard.contains(x, y)) {
+                        } else if (action == "modifier.dailyBriefing.open") {
                             dailyBriefingExpanded = true;
                         }
                     } else if (screen == FrontendScreen::Workshop) {
+                        const std::string action = actionAt(x, y);
                         if (workshopClassOverview) {
-                            if (workshopClassOverviewPrevious.contains(x, y)) workshopClassOverviewGroup = (workshopClassOverviewGroup + 14) % 15;
-                            else if (workshopClassOverviewNext.contains(x, y)) workshopClassOverviewGroup = (workshopClassOverviewGroup + 1) % 15;
-                            else if (workshopBackButton.contains(x, y)) workshopClassOverview = false;
+                            if (action == "workshop.overview.previous") workshopClassOverviewGroup = (workshopClassOverviewGroup + 14) % 15;
+                            else if (action == "workshop.overview.next") workshopClassOverviewGroup = (workshopClassOverviewGroup + 1) % 15;
+                            else if (action == "workshop.overview.close") workshopClassOverview = false;
                         } else if (workshopPurchase != WorkshopPurchase::None) {
-                            if (workshopConfirmCancelButton.contains(x, y)) clearWorkshopPurchase();
-                            else if (workshopConfirmAcceptButton.contains(x, y)) commitWorkshopPurchase();
-                        } else if (workshopClassOverviewButton.contains(x, y)) { workshopClassOverview = true; workshopSkillFocus = -1; workshopPurchase = WorkshopPurchase::None; }
-                        else if (workshopBackButton.contains(x, y)) screen = FrontendScreen::MainMenu;
-                        else for (int preset = 0; preset < 3; ++preset) if (workshopPresetButton(preset).contains(x, y)) { if (ta::equipSkillPreset(profile, static_cast<std::size_t>(preset))) { sim.setSkillLoadout(profile.skillLoadout); saveCurrentProfile(); } }
-                        else if (workshopTowerButton.contains(x, y)) { workshopPurchase = WorkshopPurchase::TowerCore; workshopPurchaseIndex = 0; }
-                        else for (int index = 0; index < 5; ++index) if (workshopModuleButton(index).contains(x, y)) { workshopPurchase = WorkshopPurchase::WeaponModule; workshopPurchaseIndex = index; }
-                        else for (int index = 1; index < 5; ++index) if (workshopSupportButton(index).contains(x, y)) { workshopPurchase = WorkshopPurchase::SupportModule; workshopPurchaseIndex = index; }
-                        else for (int slot = 0; slot < 3; ++slot) if (workshopUltimateButton(slot).contains(x, y)) { workshopPurchase = WorkshopPurchase::UltimateEvolution; workshopPurchaseIndex = slot; }
-                        else for (int slot = 0; slot < 2; ++slot) if (workshopUltimateModuleButton(slot).contains(x, y)) { workshopPurchase = WorkshopPurchase::UltimateModule; workshopPurchaseIndex = slot; }
-                        else for (int slot = 0; slot < static_cast<int>(ta::SkillSlotCount); ++slot) if (workshopSkillButton(slot).contains(x, y)) workshopSkillFocus = slot;
+                            if (action == "workshop.confirm.cancel") clearWorkshopPurchase();
+                            else if (action == "workshop.confirm.accept") commitWorkshopPurchase();
+                        } else if (action == "workshop.overview.open") { workshopClassOverview = true; workshopSkillFocus = -1; workshopPurchase = WorkshopPurchase::None; }
+                        else if (action == "workshop.back") screen = FrontendScreen::MainMenu;
+                        else for (int preset = 0; preset < 3; ++preset) if (action == "workshop.preset." + std::to_string(preset)) { if (ta::equipSkillPreset(profile, static_cast<std::size_t>(preset))) { sim.setSkillLoadout(profile.skillLoadout); saveCurrentProfile(); } }
+                        else if (action == "workshop.tower") { workshopPurchase = WorkshopPurchase::TowerCore; workshopPurchaseIndex = 0; }
+                        else for (int index = 0; index < 5; ++index) if (action == "workshop.module." + std::to_string(index)) { workshopPurchase = WorkshopPurchase::WeaponModule; workshopPurchaseIndex = index; }
+                        else for (int index = 1; index < 5; ++index) if (action == "workshop.support." + std::to_string(index)) { workshopPurchase = WorkshopPurchase::SupportModule; workshopPurchaseIndex = index; }
+                        else for (int slot = 0; slot < 3; ++slot) if (action == "workshop.evolution." + std::to_string(slot)) { workshopPurchase = WorkshopPurchase::UltimateEvolution; workshopPurchaseIndex = slot; }
+                        else for (int slot = 0; slot < 2; ++slot) if (action == "workshop.sidegrade." + std::to_string(slot)) { workshopPurchase = WorkshopPurchase::UltimateModule; workshopPurchaseIndex = slot; }
+                        else for (int slot = 0; slot < static_cast<int>(ta::SkillSlotCount); ++slot) if (action == "workshop.skill." + std::to_string(slot)) workshopSkillFocus = slot;
                     } else if (screen == FrontendScreen::Collection) {
-                        if (collectionBackButton.contains(x, y)) screen = FrontendScreen::MainMenu;
+                        const std::string action = actionAt(x, y);
+                        if (action == "collection.back") screen = FrontendScreen::MainMenu;
                         else {
-                            for (int index = 0; index < 13; ++index) if (collectionCategoryButton(index).contains(x, y)) { collectionCategory = index; collectionItem = 0; }
+                            for (int index = 0; index < 13; ++index) if (action == "collection.category." + std::to_string(index)) { collectionCategory = index; collectionItem = 0; }
                         }
                     }
                     continue;
                 }
                 if (!started && screen == FrontendScreen::Loadout) {
+                    const std::string action = actionAt(x, y);
                     if (skillBrowserOpen) {
-                        if (skillBrowserClose.contains(x, y)) {
+                        if (action == "loadout.skill.close") {
                             skillBrowserOpen = false;
                             skillBrowserSearchFocused = false;
                             skillBrowserScrollbarDragging = false;
                             skillBrowserTouchDragging = false;
                             activeSkillBrowserSelection = -1;
                             SDL_StopTextInput();
-                        } else if (skillBrowserSearch.contains(x, y)) {
+                        } else if (action == "loadout.skill.search") {
                             skillBrowserSearchFocused = true;
                             SDL_StartTextInput();
-                        } else if (skillBrowserClassFilter.contains(x, y)) {
+                        } else if (action == "loadout.skill.filter") {
                             skillBrowserSearchFocused = false;
                             SDL_StopTextInput();
                             const std::vector<std::string> filters = skillBrowserClassFilters(sim);
                             const auto current = std::find(filters.begin(), filters.end(), skillBrowserClass);
                             const std::size_t next = current == filters.end() ? 0u : (static_cast<std::size_t>(current - filters.begin()) + 1u) % filters.size();
                             changeSkillBrowserClass(filters[next]);
-                        } else if (skillBrowserEquip.contains(x, y) && activeSkillBrowserSelection >= 0 && activeSkillBrowserSelection < static_cast<int>(ta::SkillId::Count)) {
+                        } else if (action == "loadout.skill.equip" && activeSkillBrowserSelection >= 0 && activeSkillBrowserSelection < static_cast<int>(ta::SkillId::Count)) {
                             const ta::SkillId selectedSkill = static_cast<ta::SkillId>(activeSkillBrowserSelection);
                             const auto duplicate = std::find(profile.skillLoadout.skills.begin(), profile.skillLoadout.skills.end(), selectedSkill);
                             if (duplicate == profile.skillLoadout.skills.end() && ta::equipSkill(profile, static_cast<std::size_t>(skillBrowserSlot), selectedSkill)) {
@@ -3954,7 +4082,7 @@ int main(int argc, char** argv) {
                                 activeSkillBrowserSelection = -1;
                                 SDL_StopTextInput();
                             }
-                        } else if (skillBrowserScrollTrack.contains(x, y)) {
+                        } else if (action == "loadout.skill.scroll") {
                             const int resultCount = static_cast<int>(skillBrowserResults(sim, skillBrowserQuery, skillBrowserClass, &profile).size());
                             const int maximum = skillBrowserMaxScrollRows(resultCount);
                             if (maximum > 0) {
@@ -3965,37 +4093,31 @@ int main(int argc, char** argv) {
                                 } else if (y < thumb.y) skillBrowserScroll = std::max(0, skillBrowserScroll - skillBrowserVisibleRows);
                                 else if (y >= thumb.y + thumb.height) skillBrowserScroll = std::min(maximum, skillBrowserScroll + skillBrowserVisibleRows);
                             }
-                        } else if (skillBrowserViewport.contains(x, y)) {
+                        } else if (action.rfind("loadout.skill.card.", 0) == 0) {
                             skillBrowserSearchFocused = false;
                             SDL_StopTextInput();
-                            const int localColumn = (x - skillBrowserViewport.x) / (skillBrowserCardWidth + skillBrowserCardGap);
-                            const int localRow = (y - skillBrowserViewport.y) / (skillBrowserCardHeight + skillBrowserCardGap);
-                            const int cardX = skillBrowserViewport.x + localColumn * (skillBrowserCardWidth + skillBrowserCardGap);
-                            const int cardY = skillBrowserViewport.y + localRow * (skillBrowserCardHeight + skillBrowserCardGap);
-                            if (localColumn >= 0 && localColumn < skillBrowserColumns && x < cardX + skillBrowserCardWidth && y < cardY + skillBrowserCardHeight) {
-                                const std::vector<int> results = skillBrowserResults(sim, skillBrowserQuery, skillBrowserClass, &profile);
-                                const int resultIndex = (localRow + skillBrowserScroll) * skillBrowserColumns + localColumn;
-                                if (resultIndex >= 0 && resultIndex < static_cast<int>(results.size())) {
-                                    const ta::SkillId selectedSkill = static_cast<ta::SkillId>(results[static_cast<std::size_t>(resultIndex)]);
-                                    activeSkillBrowserSelection = static_cast<int>(selectedSkill);
-                                }
+                            const std::vector<int> results = skillBrowserResults(sim, skillBrowserQuery, skillBrowserClass, &profile);
+                            const int resultIndex = std::stoi(action.substr(std::string("loadout.skill.card.").size()));
+                            if (resultIndex >= 0 && resultIndex < static_cast<int>(results.size())) {
+                                const ta::SkillId selectedSkill = static_cast<ta::SkillId>(results[static_cast<std::size_t>(resultIndex)]);
+                                activeSkillBrowserSelection = static_cast<int>(selectedSkill);
                             }
                         }
                         continue;
                     }
-                    for (int index = 0; index < 3; ++index) if (loadoutChassisCard(index).contains(x, y) && (!dailyMode || !daily.chassisRequired || static_cast<ta::TowerChassis>(index) == daily.requiredChassis)) { sim.setChassis(static_cast<ta::TowerChassis>(index)); profile.equippedChassis = static_cast<std::uint8_t>(index); saveCurrentProfile(); }
-                    for (int i = 0; i < 5; ++i) if (loadoutWeaponCard(i).contains(x, y) && (!dailyMode || !daily.weaponRequired || static_cast<ta::Weapon>(i) == daily.requiredWeapon)) { sim.setWeapon(static_cast<ta::Weapon>(i)); if (!dailyMode) { profile.equippedWeapon = static_cast<std::uint8_t>(i); saveCurrentProfile(); } }
-                    for (int i = 0; i < 3; ++i) if (loadoutArenaCard(i).contains(x, y) && (!dailyMode || static_cast<ta::Arena>(i) == daily.arena)) sim.setArena(static_cast<ta::Arena>(i));
-                    for (int i = 0; i < 4; ++i) if (loadoutSkullCard(i).contains(x, y) && !dailyMode) sim.toggleSkull(static_cast<ta::Skull>(i + 1));
-                    for (int i = 0; i < 5; ++i) if (loadoutSkinCard(i).contains(x, y)) {
+                    for (int index = 0; index < 3; ++index) if (action == "loadout.chassis." + std::to_string(index)) { sim.setChassis(static_cast<ta::TowerChassis>(index)); profile.equippedChassis = static_cast<std::uint8_t>(index); saveCurrentProfile(); }
+                    for (int i = 0; i < 5; ++i) if (action == "loadout.weapon." + std::to_string(i)) { sim.setWeapon(static_cast<ta::Weapon>(i)); if (!dailyMode) { profile.equippedWeapon = static_cast<std::uint8_t>(i); saveCurrentProfile(); } }
+                    for (int i = 0; i < 3; ++i) if (action == "loadout.arena." + std::to_string(i)) sim.setArena(static_cast<ta::Arena>(i));
+                    for (int i = 0; i < 4; ++i) if (action == "loadout.skull." + std::to_string(i) && !dailyMode) sim.toggleSkull(static_cast<ta::Skull>(i + 1));
+                    for (int i = 0; i < 5; ++i) if (action == "loadout.skin." + std::to_string(i)) {
                         skinPreview = i;
                         const ta::TowerSkin skin = static_cast<ta::TowerSkin>(i);
                         if (!ta::isSkinUnlocked(profile, skin)) ta::unlockSkin(profile, skin);
                         if (ta::isSkinUnlocked(profile, skin)) { ta::equipSkin(profile, skin); sim.setSkin(skin); saveCurrentProfile(); }
                     }
-                    for (int i = 0; i < 5; ++i) if (loadoutUltimateCard(i).contains(x, y) && (!dailyMode || static_cast<ta::Ultimate>(i) == daily.requiredUltimate)) { sim.setUltimate(static_cast<ta::Ultimate>(i)); if (!dailyMode) { profile.equippedUltimate = static_cast<std::uint8_t>(i); profile.equippedUltimateModule = 255u; saveCurrentProfile(); } }
-                    for (int i = 0; i < 5; ++i) if (loadoutSupportCard(i).contains(x, y) && (!dailyMode || static_cast<ta::SupportModule>(i) == daily.requiredSupport)) { sim.setSupport(static_cast<ta::SupportModule>(i)); profile.equippedSupportModule = static_cast<std::uint8_t>(i); saveCurrentProfile(); }
-                    if (!dailyMode && loadoutDoctrineButton.contains(x, y)) {
+                    for (int i = 0; i < 5; ++i) if (action == "loadout.ultimate." + std::to_string(i)) { sim.setUltimate(static_cast<ta::Ultimate>(i)); if (!dailyMode) { profile.equippedUltimate = static_cast<std::uint8_t>(i); profile.equippedUltimateModule = 255u; saveCurrentProfile(); } }
+                    for (int i = 0; i < 5; ++i) if (action == "loadout.support." + std::to_string(i)) { sim.setSupport(static_cast<ta::SupportModule>(i)); profile.equippedSupportModule = static_cast<std::uint8_t>(i); saveCurrentProfile(); }
+                    if (action == "loadout.doctrine") {
                         const std::vector<ta::ClassDoctrineDefinition> doctrines = ta::availableClassDoctrines(sim.skillLoadoutIdentity());
                         if (!doctrines.empty()) {
                             const auto current = std::find_if(doctrines.begin(), doctrines.end(), [&](const ta::ClassDoctrineDefinition& doctrine) { return profile.skillLoadout.doctrineId == doctrine.id; });
@@ -4005,7 +4127,7 @@ int main(int argc, char** argv) {
                             saveCurrentProfile();
                         }
                     }
-                    if (!dailyMode) for (int slot = 0; slot < static_cast<int>(ta::SkillSlotCount); ++slot) if (loadoutSkillButton(slot).contains(x, y)) {
+                    if (!dailyMode) for (int slot = 0; slot < static_cast<int>(ta::SkillSlotCount); ++slot) if (action == "loadout.skill." + std::to_string(slot)) {
                         skillBrowserSlot = slot;
                         skillBrowserOpen = true;
                         skillBrowserSearchFocused = true;
@@ -4021,35 +4143,37 @@ int main(int argc, char** argv) {
                         refreshSkillBrowserSelection();
                         SDL_StartTextInput();
                     }
-                    if (loadoutStartButton.contains(x, y)) {
+                    if (action == "loadout.start") {
                         dailyMode = false;
                         screen = FrontendScreen::ModifierSelect;
                     }
-                    if (loadoutDailyButton.contains(x, y)) {
+                    if (action == "loadout.daily") {
                         prepareDailyRun();
                         dailyMode = true;
                         screen = FrontendScreen::ModifierSelect;
                     }
                 } else if (sim.upgradePending()) {
-                    if (upgradeRerollButton.contains(x, y)) {
+                    const std::string action = actionAt(x, y);
+                    if (action == "game.upgrade.reroll") {
                         if (sim.rerollUpgradeChoices()) replay.events.push_back({static_cast<std::uint32_t>(sim.stats().ticks + 1), ta::ReplayAction::Reroll, 0});
                     }
-                    for (int i = 0; i < 3; ++i) if (upgradeChoiceButton(i).contains(x, y)) {
+                    for (int i = 0; i < 3; ++i) if (action == "game.upgrade.choice." + std::to_string(i)) {
                         const int previous = sim.stats().upgrades;
                         sim.chooseUpgrade(i);
                         if (sim.stats().upgrades != previous) replay.events.push_back({static_cast<std::uint32_t>(sim.stats().ticks + 1), ta::ReplayAction::Upgrade, static_cast<std::uint8_t>(i)});
                     }
                 } else if (targetingSkillSlot >= 0 && y < 610) {
                     castSkillFromPointer(static_cast<std::size_t>(targetingSkillSlot), x, y);
-                } else if (targetingSkillSlot >= 0 && skillTargetCancelButton.contains(x, y)) {
+                } else if (targetingSkillSlot >= 0 && actionAt(x, y) == "game.target.cancel") {
                     targetingSkillSlot = -1;
                 } else if (y >= 610 && y < 700) {
-                    for (int index = 0; index < static_cast<int>(ta::SkillSlotCount); ++index) if (skillSlotButton(index).contains(x, y)) {
+                    const std::string action = actionAt(x, y);
+                    for (int index = 0; index < static_cast<int>(ta::SkillSlotCount); ++index) if (action == "game.skill." + std::to_string(index)) {
                         const ta::SkillSnapshot snapshot = sim.skillSnapshot(static_cast<std::size_t>(index));
                         if (snapshot.targetMode == ta::SkillTargetMode::None) castSkillFromPointer(static_cast<std::size_t>(index), GameSim::Width / 2, GameSim::Height / 2);
                         else targetingSkillSlot = targetingSkillSlot == index ? -1 : index;
                     }
-                } else if (x >= 1030 && x < 1220 && y >= 80 && y < 160) {
+                } else if (actionAt(x, y) == "game.ultimate") {
                     const int previous = sim.stats().ultimates; sim.activateUltimate();
                     if (sim.stats().ultimates != previous) replay.events.push_back({static_cast<std::uint32_t>(sim.stats().ticks + 1), ta::ReplayAction::Ultimate, 0});
                         }

@@ -202,6 +202,25 @@ int main() {
     check(fitted.size() < std::string("A VERY LONG PANEL LABEL").size(), "bounded text fitting did not shorten an overflowing label");
     check(ta::ui::textLineHeight(2) <= 18, "large text line did not fit the standard title box");
 
+    ta::ui::UiScene scene({0, 0, 200, 120});
+    scene.add({"modal", {}, {}, {10, 10, 180, 100}, ta::ui::LayoutRole::Container, 0, true});
+    scene.add({"modal.confirm", "modal", "confirm", {30, 70, 60, 24}, ta::ui::LayoutRole::Interactive, 1, true});
+    scene.add({"modal.cancel", "modal", "cancel", {110, 70, 60, 24}, ta::ui::LayoutRole::Interactive, 1, true});
+    scene.add({"modal.rule", "modal", {}, {20, 45, 160, 1}, ta::ui::LayoutRole::Decoration, 0, true});
+    scene.addText({"modal.help", "modal", {30, 25, 140, 14}, "SELECT AN ACTION", 1, 0, 14, true});
+    check(scene.validate().empty(), "valid scene produced layout validation issues");
+    check(scene.hitTest(35, 75) != nullptr && scene.hitTest(35, 75)->actionId == "confirm", "scene hit testing did not resolve the semantic control");
+    check(scene.hitTest(90, 75) == nullptr, "scene hit testing activated a gap between controls");
+    ta::ui::UiScene invalidScene({0, 0, 200, 120});
+    invalidScene.add({"panel", {}, {}, {10, 10, 100, 80}, ta::ui::LayoutRole::Container, 0, true});
+    invalidScene.add({"bad.child", "panel", "bad", {80, 70, 60, 30}, ta::ui::LayoutRole::Interactive, 1, true});
+    invalidScene.add({"bad.overlap", "panel", "other", {70, 65, 40, 30}, ta::ui::LayoutRole::Interactive, 1, true});
+    invalidScene.addText({"bad.text", "panel", {20, 20, 30, 7}, "THIS TEXT DOES NOT FIT", 1, 0, 14, true});
+    const std::vector<ta::ui::UiValidationIssue> invalidIssues = invalidScene.validate();
+    check(std::any_of(invalidIssues.begin(), invalidIssues.end(), [](const ta::ui::UiValidationIssue& issue) { return issue.code == "PARENT_ESCAPE"; }), "scene validator missed a child escaping its parent");
+    check(std::any_of(invalidIssues.begin(), invalidIssues.end(), [](const ta::ui::UiValidationIssue& issue) { return issue.code == "SIBLING_OVERLAP"; }), "scene validator missed overlapping sibling controls");
+    check(std::any_of(invalidIssues.begin(), invalidIssues.end(), [](const ta::ui::UiValidationIssue& issue) { return issue.code == "TEXT_OVERFLOW"; }), "scene validator missed overflowing text");
+
     check(ta::app::mainMenuSelection(0) == ta::app::FrontendScreen::RunType && ta::app::mainMenuSelection(3) == ta::app::FrontendScreen::Settings, "main-menu state transitions were incorrect");
     check(ta::app::runTypeSelection(0) == ta::app::FrontendScreen::Loadout && ta::app::runTypeSelection(3) == ta::app::FrontendScreen::MainMenu, "run-type state transitions were incorrect");
     check(ta::app::backFrom(ta::app::FrontendScreen::Settings) == ta::app::FrontendScreen::MainMenu && ta::app::backFrom(ta::app::FrontendScreen::ModifierSelect) == ta::app::FrontendScreen::Loadout, "Back navigation contract was incorrect");
